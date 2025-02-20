@@ -35,6 +35,7 @@ onMounted(() => {
 //   }
 // )
 
+//监听路由路径
 watch(
   () => route.path,
   (newRoute) => {
@@ -54,8 +55,9 @@ watch(
         <Sider v-if="!isLogin" />
         <Content class="app-wrapper" :class="{ isLogin }">
           <ConfigProvider :locale="zhCN">
-            <BreadHeader v-if="!isLogin" /> <router-view /> </ConfigProvider
-        ></Content>
+            <BreadHeader v-if="!isLogin" /> <router-view /> 
+          </ConfigProvider>
+        </Content>
       </Layout>
     </Layout>
   </ConfigProvider>

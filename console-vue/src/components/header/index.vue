@@ -2,23 +2,15 @@
   <Header :class="{ isLogin }">
     <div class="header-wrapper">
       <div>
-        <div class="logo">拿个offer-12306铁路购票@马丁</div>
+        <div class="logo">火车票务系统</div>
       </div>
       <div>
         <ul class="nav-list-wrapper">
           <router-link to="/ticketSearch">
             <li>首页</li>
           </router-link>
-          <a href="https://nageoffer.com/12306" target="_blank">
-            <li>文档</li>
-          </a>
-          <a href="https://nageoffer.com/docs/" target="_blank">
-            <li>博客</li>
-          </a>
-          <a href="https://nageoffer.com/planet" target="_blank">
-            <li>社区</li>
-          </a>
           <a v-if="route.fullPath !== '/login'">
+            <!-- 登录头像下拉栏 -->
             <Dropdown :trigger="['click']">
               <li :style="{ padding: '0 0 0 30px' }">
                 <Avatar shape="square" style="background-color: #1890ff"

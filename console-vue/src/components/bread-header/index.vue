@@ -3,7 +3,7 @@
     <Breadcrumb>
       <BreadcrumbItem>
         <IconFont type="icon-huochezhanxiao" />
-        <span>12306</span></BreadcrumbItem
+        <span>火车票务系统</span></BreadcrumbItem
       >
       <BreadcrumbItem
         ><IconFont :type="currentPath?.icon" color="black" />
@@ -38,3 +38,5 @@ watch(
   }
 }
 </style>
+
+
