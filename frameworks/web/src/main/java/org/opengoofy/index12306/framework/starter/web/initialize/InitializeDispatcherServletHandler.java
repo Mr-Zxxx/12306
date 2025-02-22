@@ -38,7 +38,7 @@ public final class InitializeDispatcherServletHandler implements CommandLineRunn
 
     @Override
     public void run(String... args) throws Exception {
-        String url = String.format("http://127.0.0.1:%s%s",
+        String url = String.format("http://192.168.241.133:%s%s",
                 configurableEnvironment.getProperty("server.port", "8080") + configurableEnvironment.getProperty("server.servlet.context-path", ""),
                 INITIALIZE_PATH);
         try {

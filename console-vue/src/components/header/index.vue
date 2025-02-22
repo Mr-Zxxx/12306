@@ -97,9 +97,9 @@ const logout = () => {
   box-shadow: 0 2px 10px 0 rgba(0, 0, 0, 0.08);
 }
 
-.isLogin.ant-layout-header {
-  background-color: transparent;
-}
+// .isLogin.ant-layout-header {
+//    background-color: transparent;
+// }
 
 .header-wrapper {
   display: flex;

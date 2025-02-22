@@ -5,7 +5,7 @@
         <div>2023-06-18(周日)</div>
         <div>G103</div>
         <div>次</div>
-        <div>北京南</div>
+        <div>长沙南</div>
         <div>站</div>
         <div>(06:20开)</div>
         <div>—上海虹桥</div>

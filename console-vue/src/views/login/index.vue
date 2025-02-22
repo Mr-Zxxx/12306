@@ -153,7 +153,7 @@ const handleLogin = () => {
 
 const registerSubmit = () => {
   if (location.host.indexOf('12306') !== -1) {
-    message.info('关注公众获取验证码登录哦！')
+    message.info('请获取验证码登录')
     currentAction.value = 'login'
     return
   }
@@ -175,25 +175,22 @@ const registerSubmit = () => {
 </script>
 <template>
   <div class="login-wrapper">
-    <div class="title-wrapper">
-      <!-- <h1 class="title">铁路12306</h1>
-      <h3 class="desc">其他文案</h3> -->
-    </div>
     <div class="login-reg-panel">
       <div class="login-info-box">
         <h2>已有账号？</h2>
         <h3>欢迎登录账号！</h3>
-        <button @click="() => (currentAction = 'login')">去登录</button>
+        <button @click="() => (currentAction = 'login')">登录</button>
       </div>
       <div class="register-info-box">
         <h2>没有账号？</h2>
         <h3>欢迎注册账号！</h3>
-        <button @click="() => (currentAction = 'register')">去注册</button>
+        <button @click="() => (currentAction = 'register')">注册</button>
       </div>
       <div
         class="white-panel"
         :class="{ 'white-panel-left': currentAction === 'register' }"
       >
+        <!-- 登录表单 -->
         <div class="login-show" v-if="currentAction === 'login'">
           <h1 class="title">登录</h1>
           <Form name="basic" autocomplete="off">
@@ -232,6 +229,7 @@ const registerSubmit = () => {
             </FormItem>
           </Form>
         </div>
+        <!-- 注册表单 -->
         <div class="register-show" v-else>
           <h1 class="title">注册</h1>
           <Form name="basic" autocomplete="off" :label-col="{ span: 6 }">
@@ -259,7 +257,7 @@ const registerSubmit = () => {
             </FormItem>
             <FormItem label="证件类型" v-bind="registerValidateInfos.idType">
               <Select
-                :options="[{ value: 0, label: '中国居民身份证' }]"
+                :options="[{ value: 0, label: '中国居民身份证' },{ value: 1, label: '港澳通行证' },{ value: 2, label: '护照' }]"
                 v-model:value="registerForm.idType"
                 placeholder="请选择证件类型"
               ></Select>
@@ -301,64 +299,50 @@ const registerSubmit = () => {
       </div>
     </div>
   </div>
-  <Modal
-    :visible="state.open"
-    title="人机认证"
-    wrapClassName="code-modal"
-    width="450px"
-    @cancel="state.open = false"
-    @ok="handleLogin"
-    centered
-  >
-    <div class="wrapper">
-      <h1 class="tip-text">
-        {{
-          `扫码下方二维码，关注后回复：12306，获取拿个offer-12306在线购票系统人机验证码`
-        }}
-      </h1>
-      <img
-        src="https://images-machen.oss-cn-beijing.aliyuncs.com/1_990064918_171_86_3_722467528_78457b21279219802d38525d32a77f39.png"
-        alt="微信公众号"
-      />
-      <div class="code-input">
-        <label class="code-label">验证码</label>
-        <Input
-          v-model:value="formState.code"
-          :style="{ width: '300px' }"
-        ></Input>
-      </div>
-    </div>
-  </Modal>
 </template>
 
 <style lang="scss" scoped>
 .login-wrapper {
   width: 100%;
   height: 100%;
-  // background-color: #fff;
-  background: url('../../assets/black_dot.png');
+  // background-color: #ffffff44;
+  //背景图片
   background-clip: border-box;
+  // background-image: url('~@/assets/background.jpg');
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)), /* 黑色半透明蒙版 */
+    url("~@/assets/background.jpg");
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
   .login-reg-panel {
-    position: relative;
+    border-radius: 10px;
+    position: absolute;
     top: 50%;
-    transform: translateY(-50%);
+    left: 50%;
+    transform: translate(-50%, -50%);
     text-align: center;
     width: 40%;
     right: 0;
-    left: 20%;
     margin: auto;
     min-width: 800px;
     height: 600px;
-    background-color: rgba(30, 30, 30, 0.9);
+    background-color: #252b30d3;
     .white-panel {
+      border-radius: 10px;
       background-color: rgba(255, 255, 255, 1);
       height: 600px;
       position: absolute;
       width: 50%;
-      right: calc(50% - 50px);
+      right: calc(50% - 0px);
       transition: 0.3s ease-in-out;
       z-index: 0;
       box-sizing: border-box;
+      /* 边框颜色（高级灰） */
+      border: 1px solid rgba(30, 30, 30, 0.9); /* 颜色稍微深一点的高级灰 */
+      /* 边框样式 */
+      box-shadow: inset 0 0 0 1px rgb(40, 40, 40); /* 内阴影增加层次感 */
+      border-radius: 10px; /* 圆角边框 */
       .login-show,
       .register-show {
         height: 100%;
@@ -388,7 +372,7 @@ const registerSubmit = () => {
     }
     .white-panel-left {
       transition: 0.3s ease-in-out;
-      right: calc(0px + 50px);
+      right: calc(0px + 0px);
     }
     .login-info-box {
       display: flex;
@@ -457,30 +441,7 @@ const registerSubmit = () => {
     }
   }
 }
-.code-modal {
-  .wrapper {
-    text-align: center;
-    .tip-text {
-      width: 100%;
-      text-align: center;
-      font-size: 14px;
-      color: red;
-    }
-    .code-input {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      .code-label {
-        margin: 10px;
-        &::before {
-          content: '*';
-          color: red;
-        }
-      }
-    }
-  }
-}
+
 ::v-deep {
   .ant-modal-header {
     background-color: #3b3b3b !important;

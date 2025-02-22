@@ -67,7 +67,6 @@ watch(
 .page-wrapper {
   box-sizing: border-box;
   padding-top: 64px;
-  /* min-width: 1230px; */
   .app-wrapper {
     box-sizing: border-box;
     margin: 20px;

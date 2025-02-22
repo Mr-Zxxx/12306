@@ -4,49 +4,42 @@
       <Card>
         <template #title>
           <div class="title-wrapper">
-            <h1>列表信息</h1>
-            <h2>（以下余票信息仅供参考）</h2>
+            <h1>列车信息</h1>
+            <h2></h2>
           </div>
         </template>
         <div>
+          <!-- 列车信息 -->
           <span class="important-text">{{ query.departureDate }}</span>
-          <span class="important-text"
-            >（{{ getWeekNumber(dayjs(query.departureDate).day()) }}）</span
-          >
-          <span class="important-text">{{ query.trainNumber }}</span>
-          <span class="small-text">次</span>
-          <span class="important-text">{{ state.currTrain?.departure }}</span>
-          <span class="small-text">站</span>
-          <span class="important-text"
-            >（{{ state.currTrain?.departureTime }}开）——</span
-          >
-          <span class="important-text">{{ state.currTrain?.arrival }}</span>
-          <span class="small-text">站</span>
-          <span class="important-text"
-            >（{{ state.currTrain?.duration }}到）</span
-          >
+          <span class="important-text">（{{ getWeekNumber(dayjs(query.departureDate).day()) }}）</span>
+          <span class="important-text">{{ query.trainNumber }}次 </span>
+          <span class="important-text">{{ state.currTrain?.departure }}站 </span>
+          <span class="important-text"> ——— </span>
+          <span class="important-text">{{ state.currTrain?.arrival }}站 </span>
         </div>
         <Divider dashed></Divider>
         <div class="seat-wrapper">
           <div v-for="item in state.currentSeat">
-            <span>{{
-              SEAT_CLASS_TYPE_LIST.find((seat) => seat.code === item.type)
-                ?.label
-            }}</span>
-            （ <span class="price">￥{{ item?.price }}</span
-            >）
-            <span>{{ item.quantity >= 1 ? '有票' : '1张票' }}</span>
+            <span>
+              {{
+              SEAT_CLASS_TYPE_LIST.find((seat) => seat.code === item.type)?.label
+              }}
+            </span>
+            （ 
+            <span class="price">￥{{ item?.price }}</span>
+            ）
+            <span>：{{ item.quantity >= 1 ? '有票' : '1张票' }}</span>
           </div>
         </div>
         <div class="tip">
-          *显示的卧铺票价均为上铺票价，供您参考，具体票价以您确认支付时实际购买的铺别票价为准。
+          <!-- *显示的卧铺票价均为上铺票价，供您参考，具体票价以您确认支付时实际购买的铺别票价为准。 -->
         </div>
       </Card>
       <Card>
+        <!-- 乘客信息 -->
         <template #title>
           <div class="title-wrapper">
             <h1>乘客信息</h1>
-            <h2>（填写说明）</h2>
           </div>
         </template>
         <div class="user-tip">
@@ -56,58 +49,48 @@
         <div class="check-wrapper">
           <CheckboxGroup
             v-if="state.currPassengerList?.length"
-            v-model:value="currPassenger"
-          >
+            v-model:value="currPassenger">
             <Checkbox
               v-for="item in state.currPassengerList"
-              :value="item.id"
-              >{{ item.realName }}</Checkbox
-            >
+              :value="item.id">
+              {{ item.realName }}
+            </Checkbox>
           </CheckboxGroup>
-          <Button v-else @click="router.push('/passenger')" type="link"
-            >去添加乘车人</Button
-          >
+          <Button v-else @click="router.push('/passenger')" type="link">去添加乘车人</Button>
         </div>
         <Divider></Divider>
         <Table
           :columns="columns"
-          :data-source="
-            (state.dataSource ?? []).filter((item) =>
-              currPassenger?.includes(item.id)
-            )
-          "
+          :data-source="(state.dataSource ?? []).filter((item) =>currPassenger?.includes(item.id))"
           :locale="{ emptyText: '请先选择乘车人' }"
           :pagination="false"
-        >
+          :scroll="{ x: 1000 }" >
           <template #ticketType="{ text, record }">
             <Select
               :style="styleWidth"
               :value="text"
-              @select="(value) => handleChooseTicketType(record.id, value)"
-            >
+              @select="(value) => handleChooseTicketType(record.id, value)">
               <SelectOption
                 v-for="item in TICKET_TYPE_LIST"
-                :value="item.value"
-                >{{ item.label }}</SelectOption
-              >
+                :value="item.value">
+                {{ item.label }}
+              </SelectOption>
             </Select>
           </template>
           <template #seatType="{ text, record }">
             <Select
               :style="styleWidth"
-              @select="(value) => handleChooseSeat(record.id, value)"
-            >
+              @select="(value) => handleChooseSeat(record.id, value)">
               <SelectOption
                 v-for="item in state.currentSeat"
-                :value="item.type"
-              >
+                :value="item.type">
                 {{
                   `${
                     SEAT_CLASS_TYPE_LIST.find((seat) => seat.code === item.type)
                       ?.label
                   }(￥${item.price})`
-                }}</SelectOption
-              >
+                }}
+              </SelectOption>
             </Select>
           </template>
           <template #realName="{ text }">
@@ -130,18 +113,17 @@
             />
           </template>
         </Table>
-        <img
+        <img 
           :style="{ width: '100%' }"
-          src="https://kyfw.12306.cn/otn/resources/images/ins_ad7.png"
-          alt=""
-        />
+          src=""
+          alt=""/>
       </Card>
       <div>
         <span>提交订单表示已阅读并同意</span>
-        <span
-          ><a href="">《国铁集团铁路旅客运输规程》</a
-          ><a href="">《服务条款》</a></span
-        >
+        <span>
+          <a href="">《国铁集团铁路旅客运输规程》</a>
+          <a href="">《服务条款》</a>
+        </span>
       </div>
       <div :style="{ width: '100%', textAlign: 'center' }">
         <Space size="large">
@@ -158,91 +140,31 @@
         </Space>
       </div>
       <div class="tips-txt">
+        <!-- TODO: 补全提示信息 -->
         <h2>温馨提示：</h2>
-        <p>
-          1.
-          一张有效身份证件同一乘车日期同一车次只能购买一张车票，高铁动卧列车除外。
-        </p>
-        <p>
-          2.
-          购买儿童票时，乘车儿童有有效身份证件的，请填写本人有效身份证件信息。自2023年1月1日起，每一名持票成年人旅客可免费携带一名未满6周岁且不单独占用席位的儿童乘车，超过一名时，超过人数应购买儿童优惠票。免费儿童可以在购票成功后添加。
-        </p>
-        <p>
-          3.
-          购买残疾军人（伤残警察）优待票的，须在购票后、开车前办理换票手续方可进站乘车。换票时，不符合规定的减价优待条件，没有有效"中华人民共和国残疾军人证"或"中华人民共和国伤残人民警察证"的，不予换票，所购车票按规定办理退票手续。
-        </p>
-        <p>
-          4.
-          一天内3次申请车票成功后取消订单（包含无座票时取消5次计为取消1次），当日将不能在12306继续购票。
-        </p>
-        <p>
-          <strong
-            >5.
-            购买铁路乘意险的注册用户年龄须在18周岁以上，使用非中国居民身份证注册的用户如购买铁路乘意险，须在<a
-              href="../view/information.html"
-              shape="rect"
-              >我的12306——个人信息</a
-            >
-            如实填写“出生日期”。</strong
-          >
-        </p>
-        <p>
-          <strong
-            >6.
-            父母为未成年子女投保，须在<a
-              href="../view/passengers.html"
-              shape="rect"
-              >我的乘车人</a
-            >
-            登记未成年子女的有效身份证件信息。</strong
-          >
-        </p>
-        <p>7.
-          未尽事宜详见《铁路旅客运输规程》等有关规定和车站公告。</p>
-        <p name="xjky" style="display: none">
-          8.
-          为确保乘客在旅途中有一个安全、舒适的乘坐环境，自2020年11月17日起，<span
-            style="color: red"
-            >旅客不得随身携带长宽高之和大于130厘米的雪具乘车</span
-          >
-          。您可选择雪具快运服务，请提前1-2天选择雪具快运“门到站”或“站到站”服务，中铁快运提供雪具到站后3日免费保管，请您根据出行时间，提前咨询和办理。中铁快运客服热线：95572<br
-            clear="none"
-          />
-        </p>
       </div>
     </Space>
+    <!-- 购票弹窗 -->
     <Modal
       :visible="state.open"
       title="请核对以下信息"
       wrap-class-name="check-info-wrapper"
       width="40%"
       @cancel="state.open = false"
-      :footer="null"
-    >
+      :footer="null">
       <Space direction="vertical" :style="{ width: '100%' }">
         <div>
           <span class="important-text">{{ query.departureDate }}</span>
-          <span class="important-text"
-            >（{{ getWeekNumber(dayjs(query.departureDate).day()) }}）</span
-          >
-          <span class="important-text">{{ query.trainNumber }}</span>
-          <span class="small-text">次</span>
-          <span class="important-text">{{ state.currTrain?.departure }}</span>
-          <span class="small-text">站</span>
-          <span class="important-text"
-            >（{{ state.currTrain?.departureTime }}开）——</span
-          >
-          <span class="important-text">{{ state.currTrain?.arrival }}</span>
-          <span class="small-text">站</span>
-          <span class="important-text"
-            >（{{ state.currTrain?.duration }}到）</span
-          >
+          <span class="important-text">（{{ getWeekNumber(dayjs(query.departureDate).day()) }}）</span>
+          <span class="important-text">{{ query.trainNumber }}次 </span>
+          <span class="important-text">{{ state.currTrain?.departure }}站 </span>
+          <span class="important-text"> ——— </span>
+          <span class="important-text">{{ state.currTrain?.arrival }}站 </span>
         </div>
         <Table
           :columns="checkColumns"
           :data-source="state.dataSource"
-          :pagination="false"
-        >
+          :pagination="false">
           <template #seatType="{ text, record }">
             <span>
               {{
@@ -269,10 +191,6 @@
           >
           <div class="seat-choose-wrapper">
             <div>
-              <div class="tip">
-                <IconFont type="icon-laba001"></IconFont>
-                选座咯
-              </div>
               <div>
                 已选座{{ state.currentSeatCode.length }}/{{
                   state.dataSource.length
@@ -345,9 +263,7 @@
           :style="{
             width: '100%',
             textAlign: 'center',
-            justifyContent: 'center'
-          }"
-        >
+            justifyContent: 'center'}">
           <Button @click="state.open = false">返回修改</Button>
           <Button
             :loading="state.loading"
@@ -698,8 +614,9 @@ const handleSubmitBuyTicket = () => {
   }
   .seat-wrapper {
     display: flex;
+    flex-direction: column;
     margin-bottom: 10px;
-    > div {
+      div {
       margin-right: 10px;
       .price {
         color: #f57531;
