@@ -4,39 +4,41 @@
       <Card>
         <template #title>
           <div class="title-wrapper">
-            <h1>列车信息</h1>
-            <h2></h2>
+            <h1>列表信息</h1>
           </div>
         </template>
         <div>
-          <!-- 列车信息 -->
           <span class="important-text">{{ query.departureDate }}</span>
-          <span class="important-text">（{{ getWeekNumber(dayjs(query.departureDate).day()) }}）</span>
+          <span class="important-text"
+            >（{{ getWeekNumber(dayjs(query.departureDate).day()) }}）</span
+          >
           <span class="important-text">{{ query.trainNumber }}次 </span>
-          <span class="important-text">{{ state.currTrain?.departure }}站 </span>
-          <span class="important-text"> ——— </span>
-          <span class="important-text">{{ state.currTrain?.arrival }}站 </span>
+          <span class="important-text">{{ state.currTrain?.departure }}站</span>
+          <span class="important-text"
+            >（{{ state.currTrain?.departureTime }}开）——</span
+          >
+          <span class="important-text">{{ state.currTrain?.arrival }}站</span>
+          <span class="important-text"
+            >（{{ state.currTrain?.duration }}到）</span
+          >
         </div>
         <Divider dashed></Divider>
         <div class="seat-wrapper">
           <div v-for="item in state.currentSeat">
-            <span>
-              {{
-              SEAT_CLASS_TYPE_LIST.find((seat) => seat.code === item.type)?.label
-              }}
-            </span>
-            （ 
-            <span class="price">￥{{ item?.price }}</span>
-            ）
-            <span>：{{ item.quantity >= 1 ? '有票' : '1张票' }}</span>
+            <span>{{
+              SEAT_CLASS_TYPE_LIST.find((seat) => seat.code === item.type)
+                ?.label
+            }}</span>
+            （ <span class="price">￥{{ item?.price }}</span
+            >）
+            <span>{{ item.quantity >= 1 ? '有票' : '1张票' }}</span>
           </div>
         </div>
         <div class="tip">
-          <!-- *显示的卧铺票价均为上铺票价，供您参考，具体票价以您确认支付时实际购买的铺别票价为准。 -->
+          建议信息
         </div>
       </Card>
       <Card>
-        <!-- 乘客信息 -->
         <template #title>
           <div class="title-wrapper">
             <h1>乘客信息</h1>
@@ -49,48 +51,58 @@
         <div class="check-wrapper">
           <CheckboxGroup
             v-if="state.currPassengerList?.length"
-            v-model:value="currPassenger">
+            v-model:value="currPassenger"
+          >
             <Checkbox
               v-for="item in state.currPassengerList"
-              :value="item.id">
-              {{ item.realName }}
-            </Checkbox>
+              :value="item.id"
+              >{{ item.realName }}</Checkbox
+            >
           </CheckboxGroup>
-          <Button v-else @click="router.push('/passenger')" type="link">去添加乘车人</Button>
+          <Button v-else @click="router.push('/passenger')" type="link"
+            >去添加乘车人</Button
+          >
         </div>
         <Divider></Divider>
         <Table
           :columns="columns"
-          :data-source="(state.dataSource ?? []).filter((item) =>currPassenger?.includes(item.id))"
+          :data-source="
+            (state.dataSource ?? []).filter((item) =>
+              currPassenger?.includes(item.id)
+            )
+          "
           :locale="{ emptyText: '请先选择乘车人' }"
           :pagination="false"
-          :scroll="{ x: 1000 }" >
+        >
           <template #ticketType="{ text, record }">
             <Select
               :style="styleWidth"
               :value="text"
-              @select="(value) => handleChooseTicketType(record.id, value)">
+              @select="(value) => handleChooseTicketType(record.id, value)"
+            >
               <SelectOption
                 v-for="item in TICKET_TYPE_LIST"
-                :value="item.value">
-                {{ item.label }}
-              </SelectOption>
+                :value="item.value"
+                >{{ item.label }}</SelectOption
+              >
             </Select>
           </template>
           <template #seatType="{ text, record }">
             <Select
               :style="styleWidth"
-              @select="(value) => handleChooseSeat(record.id, value)">
+              @select="(value) => handleChooseSeat(record.id, value)"
+            >
               <SelectOption
                 v-for="item in state.currentSeat"
-                :value="item.type">
+                :value="item.type"
+              >
                 {{
                   `${
                     SEAT_CLASS_TYPE_LIST.find((seat) => seat.code === item.type)
                       ?.label
                   }(￥${item.price})`
-                }}
-              </SelectOption>
+                }}</SelectOption
+              >
             </Select>
           </template>
           <template #realName="{ text }">
@@ -113,10 +125,6 @@
             />
           </template>
         </Table>
-        <img 
-          :style="{ width: '100%' }"
-          src=""
-          alt=""/>
       </Card>
       <div>
         <span>提交订单表示已阅读并同意</span>
@@ -140,31 +148,39 @@
         </Space>
       </div>
       <div class="tips-txt">
-        <!-- TODO: 补全提示信息 -->
-        <h2>温馨提示：</h2>
+        温馨提示
       </div>
     </Space>
-    <!-- 购票弹窗 -->
     <Modal
       :visible="state.open"
       title="请核对以下信息"
       wrap-class-name="check-info-wrapper"
       width="40%"
-      @cancel="state.open = false"
-      :footer="null">
+      @cancel="state.open = false" :footer="null">
       <Space direction="vertical" :style="{ width: '100%' }">
         <div>
           <span class="important-text">{{ query.departureDate }}</span>
-          <span class="important-text">（{{ getWeekNumber(dayjs(query.departureDate).day()) }}）</span>
-          <span class="important-text">{{ query.trainNumber }}次 </span>
-          <span class="important-text">{{ state.currTrain?.departure }}站 </span>
-          <span class="important-text"> ——— </span>
-          <span class="important-text">{{ state.currTrain?.arrival }}站 </span>
+          <span class="important-text"
+            >（{{ getWeekNumber(dayjs(query.departureDate).day()) }}）</span
+          >
+          <span class="important-text">{{ query.trainNumber }}</span>
+          <span class="small-text">次</span>
+          <span class="important-text">{{ state.currTrain?.departure }}</span>
+          <span class="small-text">站</span>
+          <span class="important-text"
+            >（{{ state.currTrain?.departureTime }}开）——</span
+          >
+          <span class="important-text">{{ state.currTrain?.arrival }}</span>
+          <span class="small-text">站</span>
+          <span class="important-text"
+            >（{{ state.currTrain?.duration }}到）</span
+          >
         </div>
         <Table
           :columns="checkColumns"
           :data-source="state.dataSource"
-          :pagination="false">
+          :pagination="false"
+        >
           <template #seatType="{ text, record }">
             <span>
               {{
@@ -191,6 +207,10 @@
           >
           <div class="seat-choose-wrapper">
             <div>
+              <div class="tip">
+                <IconFont type="icon-laba001"></IconFont>
+                请选座
+              </div>
               <div>
                 已选座{{ state.currentSeatCode.length }}/{{
                   state.dataSource.length
@@ -614,9 +634,8 @@ const handleSubmitBuyTicket = () => {
   }
   .seat-wrapper {
     display: flex;
-    flex-direction: column;
     margin-bottom: 10px;
-      div {
+    > div {
       margin-right: 10px;
       .price {
         color: #f57531;
