@@ -64,19 +64,22 @@ public final class TrainSeatTypeSelector {
     private final ThreadPoolExecutor selectSeatThreadPoolExecutor;
 
     public List<TrainPurchaseTicketRespDTO> select(Integer trainType, PurchaseTicketReqDTO requestParam) {
+        //初始化信息（）
         List<PurchaseTicketPassengerDetailDTO> passengerDetails = requestParam.getPassengers();
         Map<Integer, List<PurchaseTicketPassengerDetailDTO>> seatTypeMap = passengerDetails.stream()
                 .collect(Collectors.groupingBy(PurchaseTicketPassengerDetailDTO::getSeatType));
-        List<TrainPurchaseTicketRespDTO> actualResult = new CopyOnWriteArrayList<>();
+        List<TrainPurchaseTicketRespDTO> actualResult = new CopyOnWriteArrayList<>(); //创建线程安全的集合
+        //启动多线程处理作为分配问题
         if (seatTypeMap.size() > 1) {
             List<Future<List<TrainPurchaseTicketRespDTO>>> futureResults = new ArrayList<>();
             seatTypeMap.forEach((seatType, passengerSeatDetails) -> {
-                // 线程池参数如何设置？详情查看：https://nageoffer.com/12306/question
+                // 线程池参数如何设置？
                 Future<List<TrainPurchaseTicketRespDTO>> completableFuture = selectSeatThreadPoolExecutor
+                        //lambda表达式处理座位分配
                         .submit(() -> distributeSeats(trainType, seatType, requestParam, passengerSeatDetails));
                 futureResults.add(completableFuture);
             });
-            // 并行流极端情况下有坑，详情参考：https://nageoffer.com/12306/question
+            // 并行流极端情况下有坑，
             futureResults.parallelStream().forEach(completableFuture -> {
                 try {
                     actualResult.addAll(completableFuture.get());
@@ -85,20 +88,24 @@ public final class TrainSeatTypeSelector {
                 }
             });
         } else {
+            //单线程处理
             seatTypeMap.forEach((seatType, passengerSeatDetails) -> {
                 List<TrainPurchaseTicketRespDTO> aggregationResult = distributeSeats(trainType, seatType, requestParam, passengerSeatDetails);
                 actualResult.addAll(aggregationResult);
             });
         }
+        //确保每个乘客都分配到座位。
         if (CollUtil.isEmpty(actualResult) || !Objects.equals(actualResult.size(), passengerDetails.size())) {
             throw new ServiceException("站点余票不足，请尝试更换座位类型或选择其它站点");
         }
         List<String> passengerIds = actualResult.stream()
                 .map(TrainPurchaseTicketRespDTO::getPassengerId)
                 .collect(Collectors.toList());
+        //通过远程服务获取乘客详细信息。
         Result<List<PassengerRespDTO>> passengerRemoteResult;
         List<PassengerRespDTO> passengerRemoteResultList;
         try {
+            //发起http请求获取乘客列表
             passengerRemoteResult = userRemoteService.listPassengerQueryByIds(UserContext.getUsername(), passengerIds);
             if (!passengerRemoteResult.isSuccess() || CollUtil.isEmpty(passengerRemoteResultList = passengerRemoteResult.getData())) {
                 throw new RemoteException("用户服务远程调用查询乘车人相关信息错误");
@@ -107,10 +114,12 @@ public final class TrainSeatTypeSelector {
             if (ex instanceof RemoteException) {
                 log.error("用户服务远程调用查询乘车人相关信息错误，当前用户：{}，请求参数：{}", UserContext.getUsername(), passengerIds);
             } else {
+                //这里
                 log.error("用户服务远程调用查询乘车人相关信息错误，当前用户：{}，请求参数：{}", UserContext.getUsername(), passengerIds, ex);
             }
             throw ex;
         }
+        //填充乘客详细信息与票价查询
         actualResult.forEach(each -> {
             String passengerId = each.getPassengerId();
             passengerRemoteResultList.stream()
@@ -132,7 +141,8 @@ public final class TrainSeatTypeSelector {
             TrainStationPriceDO trainStationPriceDO = trainStationPriceMapper.selectOne(lambdaQueryWrapper);
             each.setAmount(trainStationPriceDO.getPrice());
         });
-        // 购买列车中间站点余票如何更新？详细查看：https://nageoffer.com/12306/question
+        // 购买列车中间站点余票如何更新
+        //锁定已分配的座位，防止超卖。
         seatService.lockSeat(requestParam.getTrainId(), requestParam.getDeparture(), requestParam.getArrival(), actualResult);
         return actualResult;
     }

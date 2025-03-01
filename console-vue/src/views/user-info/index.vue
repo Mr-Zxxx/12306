@@ -100,7 +100,7 @@ import {
 } from 'ant-design-vue'
 import { reactive, onMounted } from 'vue'
 import jsCookie from 'js-cookie'
-import { fechUserInfo, fetchUserUpdate } from '@/service'
+import { fetchUserInfo, fetchUserUpdate } from '@/service'
 import { REGIN_MAP, CHECK_STATUS, DISCOUNTS_TYPE } from '@/constants'
 const useForm = Form.useForm
 
@@ -152,7 +152,7 @@ const { validate } = useForm(
 )
 
 onMounted(() => {
-  fechUserInfo({ username }).then((res) => {
+  fetchUserInfo({ username }).then((res) => {
     const { userInfoMap, editUserInfoMap } = state
     if (res.success) {
       state.userInfoMap = userInfoMap.map((item) => ({

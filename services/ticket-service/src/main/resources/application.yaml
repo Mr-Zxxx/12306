@@ -12,6 +12,7 @@ spring:
     url: jdbc:mysql://192.168.241.133:3306/12306_ticket?characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&transformedBitIsBoolean=true&serverTimezone=GMT%2B8
     hikari:
       connection-test-query: select 1
+
       connection-timeout: 20000
       idle-timeout: 300000
       maximum-pool-size: 5
@@ -81,9 +82,9 @@ feign:
   client:
     config:
       default:
-        connectTimeout: 5000
+        connectTimeout: 10000
         loggerLevel: HEADERS
-        readTimeout: 5000
+        readTimeout: 10000
   httpclient:
     enabled: false
   okhttp:

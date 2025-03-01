@@ -44,8 +44,8 @@ const rulesRef = reactive({
 const { validate, validateInfos } = useForm(formState, rulesRef)
 
 const registerForm = reactive({
-  username: 'admin',
-  password: 'admin123456',
+  username: '',
+  password: '',
   realName: '',
   idType: 0,
   idCard: '',
@@ -172,6 +172,13 @@ const registerSubmit = () => {
     })
     .catch((err) => console.log(err))
 }
+
+
+const email = ref('');
+const emailValid = ref(true);
+// 验证邮箱格式的正则表达式
+const emailPattern = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+
 </script>
 <template>
   <div class="login-wrapper">
@@ -277,8 +284,10 @@ const registerSubmit = () => {
               </Input>
             </FormItem>
             <FormItem label="邮件" v-bind="registerValidateInfos.mail">
+              <!-- 邮箱输入框 -->
               <Input
                 v-model:value="registerForm.mail"
+                type="email"
                 placeholder="请输入邮箱账号"
               >
               </Input>

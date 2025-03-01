@@ -60,7 +60,7 @@
 <script setup scoped>
 import { Card, Space, Table, Divider, Button } from 'ant-design-vue'
 import IconFont from '@/components/icon-font'
-import { fetchOrderBySn, fechUserInfo } from '@/service'
+import { fetchOrderBySn, fetchUserInfo } from '@/service'
 import { h, onMounted, reactive, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Cookie from 'js-cookie'
@@ -154,7 +154,7 @@ onMounted(() => {
   fetchOrderBySn({ orderSn: query?.orderSn }).then((res) => {
     state.orderDetail = res?.data
   })
-  fechUserInfo({ username: Cookie.get('username') }).then((res) => {
+  fetchUserInfo({ username: Cookie.get('username') }).then((res) => {
     state.userInfo = res?.data
   })
 })
