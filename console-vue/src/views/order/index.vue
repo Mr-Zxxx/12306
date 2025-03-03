@@ -163,13 +163,8 @@
       </div>
     </div>
   </Space>
-  <Modal
-    :visible="state.open"
-    title="请付款"
-    @cancel="state.open = false"
-    width="40%"
-    :footer="null"
-  >
+  <!-- 支付弹窗 -->
+  <Modal :visible="state.open" title="请付款" @cancel="state.open=false" width="40%" :footer="null">
     <Spin :spinning="state.loading">
       <div>
         >>应付金额：<span
@@ -180,7 +175,7 @@
       </div>
       <Divider dashed></Divider>
       <div :style="{ overflow: 'hidden' }">
-        <div v-for="item in BANK_LIST" class="bank3">
+        <div v-for="item in BANK_LIST" :key="item" class="bank3">
           <div class="bank3_5" @click="() => handlePay(item.value)">
             <img :src="item.img" :alt="item.name" />
           </div>
@@ -188,6 +183,7 @@
       </div>
     </Spin>
   </Modal>
+  <!-- 支付完成弹窗 -->
   <Modal
     :visible="state.isPayingOpen"
     title="网上支付提示"

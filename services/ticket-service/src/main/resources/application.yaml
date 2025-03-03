@@ -82,9 +82,9 @@ feign:
   client:
     config:
       default:
-        connectTimeout: 10000
+        connectTimeout: 20000
         loggerLevel: HEADERS
-        readTimeout: 10000
+        readTimeout: 20000
   httpclient:
     enabled: false
   okhttp:
