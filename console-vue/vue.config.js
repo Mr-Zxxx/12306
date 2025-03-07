@@ -6,7 +6,22 @@ module.exports = {
         changeOrigin: true,
         ws: true
       }
-    }
+    },
+    // 忽略ResizeObserver报错
+    client: {
+      overlay: {
+        warnings: false,
+        runtimeErrors: (error) => {
+          const ignoreErrors = [
+            "ResizeObserver loop limit exceeded",
+            "ResizeObserver loop completed with undelivered notifications.",
+          ]
+          if (ignoreErrors.includes(error.message)) {
+            return false
+          }
+        },
+      },
+    },
   },
   css: {
     loaderOptions: {

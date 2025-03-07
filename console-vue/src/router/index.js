@@ -13,6 +13,11 @@ import AliPay from '../views/ali-pay'
 import TikectList from '../views/order-list'
 import PersonalTicket from '../views/personalTicket'
 import PaySuccess from '../views/pay-success'
+// admin
+import AdminTrainList from '../views/admin-train-list'
+import AdminOrderSerach from '../views/admin-order-search'
+import AdminUser from '../views/admin-user'
+import AdminFinance from '../views/admin-finance'
 import Cookies from 'js-cookie'
 const routes = [
   {
@@ -125,6 +130,38 @@ const routes = [
     path: '/paySuccess',
     name: 'paySuccess',
     component: PaySuccess,
+    icon: 'icon-zhifuchenggong',
+    meta: { requiresAuth: false }
+  },
+  {
+    label: '车次查询',
+    path: '/adminTrainList',
+    name: 'adminTrainList',
+    component: AdminTrainList,
+    icon: 'icon-zhifuchenggong',
+    meta: { requiresAuth: false }
+  },
+  {
+    label: '用户管理',
+    path: '/adminUser',
+    name: 'adminUser',
+    component: AdminUser,
+    icon: 'icon-icon-adduser',
+    meta: { requiresAuth: false }
+  },
+  {
+    label: '订单管理',
+    path: '/adminOrderSerach',
+    name: 'adminOrderSerach',
+    component: AdminOrderSerach,
+    icon: 'icon-dingdan',
+    meta: { requiresAuth: false }
+  },
+  {
+    label: '财务管理',
+    path: '/adminFinance',
+    name: 'adminFinance',
+    component: AdminFinance,
     icon: 'icon-zhifuchenggong',
     meta: { requiresAuth: false }
   }

@@ -111,17 +111,16 @@ const departureTagAll = ref(false)
 const arrivalTagAll = ref(false)
 const seatTagAll = ref(false)
 
+// 车次信息
 const columns = [
   {
     title: '车次',
     dataIndex: 'trainNumber',
     slots: { customRender: 'trainNumber' },
     key: 'trainNumber',
-    width: 90,
-    // ellipsis: true,
+    width: 100,
     resizeble: false,
     align: 'center',
-    // fixed: 'left'
   },
   {
     key: 'station',
@@ -130,7 +129,6 @@ const columns = [
     ellipsis: true,
     resizeble: false,
     align: 'left',
-    // fixed: 'left'
   },
   {
     dataIndex: 'time',
@@ -260,10 +258,11 @@ const columns = [
     dataIndex: 'remark',
     slots: { customRender: 'operation' },
     align: 'center',
-    width: 80
+    resizeble: false
   }
 ]
 
+// 价格信息
 const innerColumns = [
   {
     title: '车次',
@@ -320,7 +319,6 @@ const innerColumns = [
     dataIndex: 'seatClassList',
     key: 'second_seat',
     slots: { title: 'customSecondSeatTitle', customRender: 'secondSeatPrice' },
-
     width: 80,
     ellipsis: true,
     resizeble: false,
@@ -412,10 +410,11 @@ const innerColumns = [
     dataIndex: 'remark',
     slots: { customRender: 'operation' },
     fixed: 'right',
+    resizeble: false,
     align: 'center'
   }
 ]
-
+// 路线信息
 const cardInfoColumns = [
   {
     title: '站序',
@@ -450,10 +449,19 @@ const days = new Array(15)
   .fill(',')
   .map((item, index) => dayjs().add(index, 'days'))
 
+/**
+ * 处理查询出发地表单的提交操作
+ * 该函数首先验证表单数据，验证通过后从表单中提取出发地、目的地、出发时间、到达时间和出发日期等信息，
+ * 然后调用 `fetchTicketSearch` 函数进行车票查询。根据查询结果更新页面状态，包括列车列表、列车品牌列表、
+ * 座位类型列表、出发站点列表和到达站点列表等。
+ */
 const handSubmit = () => {
+  // 验证表单数据
   validate().then(() => {
+    // 从表单中提取所需数据
     const { fromStation, toStation, departure, arrival, departureDate } =
       toRaw(headSearch)
+    // 调用车票查询接口
     fetchTicketSearch({
       fromStation,
       toStation,
@@ -461,7 +469,9 @@ const handSubmit = () => {
       arrival: arrival[0],
       departureDate: departureDate.format('YYYY-MM-DD')
     }).then((res) => {
+      // 处理查询结果
       if (!res.success) return message.error(res.message)
+      // 更新列车列表
       if (res.data.trainList) {
         state.trainList = res.data.trainList?.map((item) => ({
           ...item,
@@ -472,8 +482,10 @@ const handSubmit = () => {
           key: item.trainId
         }))
       }
+      // 更新列车品牌列表和座位类型列表
       state.trainBrandListSelect = res.data.trainBrandList
       state.seatClassTypeListSelect = res.data.seatClassTypeList
+      // 更新出发站点和到达站点列表
       currCityStations.value = res.data.departureStationList
       currArrivalStations.value = res.data.arrivalStationList
     })
@@ -489,6 +501,7 @@ const getTitle = (item) => {
   }
 }
 
+
 const getStationAll = () => {
   fetchStationAll().then((res) => {
     state.stationList = res.data
@@ -503,6 +516,7 @@ const handlePriceShow = (price) => {
   }
 }
 
+// 挂载后执行
 onMounted(() => {
   fetchTicketSearch({
     fromStation: headSearch.fromStation,
@@ -555,9 +569,11 @@ const handleBook = (record) => {
   )
 }
 </script>
+
 <template>
   <div>
     <Space direction="vertical" size="middle" :style="{ width: '100%' }">
+      <!-- 搜索栏 -->
       <Form layout="inline" :colon="false" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
         <Space direction="vertical" size="middle" :style="{ width: '100%' }">
           <Card :style="{ width: '100%' }">
@@ -568,8 +584,7 @@ const handleBook = (record) => {
                   :show-search="true" :options="state.stationList.map((item) => ({
                     label: item.name,
                     value: item.code
-                  }))
-                    ">
+                  }))">
                 </Select>
               </FormItem>
               </Col>
@@ -592,8 +607,7 @@ const handleBook = (record) => {
                   :show-search="true" :options="state.stationList.map((item) => ({
                     label: item.name,
                     value: item.code
-                  }))
-                    ">
+                  }))">
                 </Select>
               </FormItem>
               </Col>
@@ -606,11 +620,13 @@ const handleBook = (record) => {
               </Col>
               <Col span="2">
               <FormItem>
+                <!-- 查询按钮 -->
                 <Button type="primary" @click="
                   () => {
                     handSubmit()
-                  }
-                ">查询</Button>
+                  }">
+                  查询
+                </Button>
               </FormItem>
               </Col>
             </Row>
@@ -622,8 +638,7 @@ const handleBook = (record) => {
                   const year = dayjs().format('YYYY')
                   const date = year + value
                   headSearch.departureDate = dayjs(date)
-                }
-              ">
+                }">
               <TabPane v-for="item in days" :key="item.format('MM-DD')" :tab="getTitle(item)">
                 <Card flex :bordered="false">
                   <Row justify="space">
@@ -638,8 +653,7 @@ const handleBook = (record) => {
                             value.length ===
                             state.trainBrandListSelect.length
                           headSearch.car_type = value
-                        }
-                      ">
+                        }">
                         <CheckableTag :checked="checkTagCardType" @change="
                           (value) => {
                             checkTagCardType = value
@@ -648,13 +662,10 @@ const handleBook = (record) => {
                                 state.trainBrandListSelect
                             } else {
                               headSearch.car_type = []
-                            }
-                          }
-                        " :style="{border: '1px solid #f0f0f0',marginRight: '10px'}">全部</CheckableTag>
+                            }}" :style="{ border: '1px solid #f0f0f0', marginRight: '10px' }">全部</CheckableTag>
                         <Checkbox v-for="seatItem in state.trainBrandListSelect" :value="TRAIN_BRAND_LIST.find(
                           (item) => item.code === seatItem
-                        )?.code
-                          ">{{
+                        )?.code">{{
                             TRAIN_BRAND_LIST.find(
                               (item) => item.code === seatItem
                             )?.label
@@ -670,16 +681,18 @@ const handleBook = (record) => {
                           departureTagAll =
                             value.length === currCityStations.length
                           headSearch.departure = value
-                        }
-                      ">
-                        <CheckableTag :style="{border: '1px solid #f0f0f0',marginRight: '10px'}" :checked="departureTagAll" @change="
-                          (value) => {
-                            departureTagAll = value
-                            if (value) {
-                              headSearch.departure = currCityStations
-                            } else {
-                              headSearch.departure = []
-                            }}">全部</CheckableTag>
+                        }">
+                        <CheckableTag :style="{ border: '1px solid #f0f0f0', marginRight: '10px' }"
+                          :checked="departureTagAll" @change="
+                            (value) => {
+                              departureTagAll = value
+                              if (value) {
+                                headSearch.departure = currCityStations
+                              } else {
+                                headSearch.departure = []
+                              }}">
+                            全部
+                          </CheckableTag>
                         <Checkbox v-for="item in currCityStations" :value="item">{{ item }}</Checkbox>
                       </CheckboxGroup>
                     </FormItem>
@@ -692,18 +705,18 @@ const handleBook = (record) => {
                           arrivalTagAll =
                             value.length === currArrivalStations.length
                           headSearch.arrival = value
-                        }
-                      ">
-                        <CheckableTag :checked="arrivalTagAll" :style="{border: '1px solid #f0f0f0',marginRight: '10px'}" @change="
-                          (value) => {
-                            arrivalTagAll = value
-                            if (value) {
-                              headSearch.arrival = currArrivalStations
-                            } else {
-                              headSearch.arrival = []
+                        }">
+                        <CheckableTag :checked="arrivalTagAll"
+                          :style="{ border: '1px solid #f0f0f0', marginRight: '10px' }" @change="
+                            (value) => {
+                              arrivalTagAll = value
+                              if (value) {
+                                headSearch.arrival = currArrivalStations
+                              } else {
+                                headSearch.arrival = []
+                              }
                             }
-                          }
-                        ">全部</CheckableTag>
+                          ">全部</CheckableTag>
                         <Checkbox v-for="item in currArrivalStations" :value="item">{{ item }}</Checkbox>
                       </CheckboxGroup>
                     </FormItem>
@@ -718,8 +731,7 @@ const handleBook = (record) => {
                               value.length ===
                               state.seatClassTypeListSelect.length
                             headSearch.seat = value
-                          }
-                        ">
+                          }">
                         <CheckableTag :checked="seatTagAll" @change="
                           (value) => {
                             seatTagAll = value
@@ -730,9 +742,8 @@ const handleBook = (record) => {
                               headSearch.seat = []
                             }
                           }
-                        " :style="{border: '1px solid #f0f0f0',marginRight: '10px'}">全部</CheckableTag>
-                        <Checkbox 
-                          v-for="seatItem in state.seatClassTypeListSelect" 
+                        " :style="{ border: '1px solid #f0f0f0', marginRight: '10px' }">全部</CheckableTag>
+                        <Checkbox v-for="seatItem in state.seatClassTypeListSelect"
                           :value="SEAT_CLASS_TYPE_LIST.find((item) => item.code === seatItem)?.code">
                           {{
                             SEAT_CLASS_TYPE_LIST.find(
@@ -745,7 +756,7 @@ const handleBook = (record) => {
                     </Col>
                     <Col :span="4" style="text-align:'end'">
                     <FormItem label="发车时间">
-                      <Select dropdownClassName="custom-select" :default-value="0" :options="carRangeTime.map((item) => ({label: item.label,value: item.value}))"/>
+                      <Select dropdownClassName="custom-select" :default-value="0" :options="carRangeTime.map((item) => ({ label: item.label, value: item.value }))" />
                     </FormItem>
                     </Col>
                   </Row>
@@ -755,6 +766,7 @@ const handleBook = (record) => {
           </div>
         </Space>
       </Form>
+      <!-- 搜索条件 -->
       <Row>
         <Col :span="12">
         <span class="city-name">
@@ -783,20 +795,12 @@ const handleBook = (record) => {
           }}</span>个车次
         </Col>
       </Row>
+      <!-- 车次表 -->
       <div class="custome-table">
-        <Table 
-        :columns="columns" 
-        :data-source="state.trainList" 
-        :pagination="false"
-        :scroll="{ x: 1000 }"
-        >
+        <Table :columns="columns" :data-source="state.trainList" :pagination="false" :scroll="{ x: 1000 }">
           <template #expandedRowRender="{ record }">
-            <Table 
-            :show-header="false" 
-            :pagination="false" 
-            :columns="innerColumns" 
-            :data-source="[record]"
-            >
+            <!-- 价格表 -->
+            <Table :show-header="false" :pagination="false" :columns="innerColumns" :data-source="[record]">
               <template #highSpeedTrainPrice="{ text }">
                 <div :style="{ color: '#fc8302' }">
                   {{
@@ -903,15 +907,14 @@ const handleBook = (record) => {
             </Table>
           </template>
           <template #trainNumber="{ text, record }">
-            <h1 class="card-name" :style="{cursor: 'pointer'}" 
-              @click="() => {
-                state.loading = true
-                handleTrainClick(record.trainId)
-              }">
+            <h1 class="card-name" :style="{ cursor: 'pointer' }" @click="() => {
+              state.loading = true
+              handleTrainClick(record.trainId)
+            }">
               <Tooltip :get-popup-container="(node) => node.parentNode" placement="rightTop" trigger="click">
                 <div>
                   <!-- 车次名称 -->
-                  {{ text }} 
+                  {{ text }}
                 </div>
                 <div style="
                     display: flex;
@@ -935,6 +938,7 @@ const handleBook = (record) => {
                   </div>
                 </div>
                 <template #title>
+                  <!-- 线路表 -->
                   <Table :columns="cardInfoColumns" :data-source="state.trainStationList" :pagination="false"
                     :loading="state.loading"></Table>
                 </template>
@@ -1165,16 +1169,7 @@ const handleBook = (record) => {
           </template>
         </Table>
       </div>
-      <Alert type="warning">
-        <template #description>
-          <!-- 警告框：备注信息 -->
-          <div>
-          备注信息
-          </div>
-          <div>
-          </div>
-        </template>
-      </Alert>
+
     </Space>
   </div>
 </template>

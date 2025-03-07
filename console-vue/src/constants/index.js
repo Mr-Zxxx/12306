@@ -95,8 +95,6 @@ const SEAT_NAME_MAP = [
   },
   {
     1: {
-      businessClass: '商务座',
-      businessClass: '商务座',
       businessClass: '商务座'
     }
   }

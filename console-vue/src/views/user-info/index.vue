@@ -127,7 +127,7 @@ const state = reactive({
       label: '核验状态',
       value: '--',
       unRequire: true,
-      color: '#fe9a5e',
+      color: 'green',
       key: 'verifyStatus',
       render: (value) =>
         CHECK_STATUS.find((item) => item.value === value)?.label ?? '--'
