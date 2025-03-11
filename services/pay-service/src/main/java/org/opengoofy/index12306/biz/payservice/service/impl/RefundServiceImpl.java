@@ -67,10 +67,21 @@ public class RefundServiceImpl implements RefundService {
     private final AbstractStrategyChoose abstractStrategyChoose;
     private final RefundResultCallbackOrderSendProduce refundResultCallbackOrderSendProduce;
 
+    /**
+     * 处理通用退款请求，执行退款操作并更新相关支付单和退款单状态。
+     * 该方法通过策略模式动态选择退款组件，并根据退款结果更新支付单和退款单状态。
+     * 如果退款成功，还会回调订单服务以更新订单状态。
+     *
+     * @param requestParam 退款请求参数，包含订单号、退款金额等信息
+     * @return RefundRespDTO 退款响应实体，当前方法暂时返回空实体
+     * @throws ServiceException 如果支付单不存在、更新支付单或退款单失败时抛出异常
+     */
     @Override
     @Transactional
     public RefundRespDTO commonRefund(RefundReqDTO requestParam) {
         RefundRespDTO refundRespDTO = null;
+
+        // 根据订单号查询支付单信息
         LambdaQueryWrapper<PayDO> queryWrapper = Wrappers.lambdaQuery(PayDO.class)
                 .eq(PayDO::getOrderSn, requestParam.getOrderSn());
         PayDO payDO = payMapper.selectOne(queryWrapper);
@@ -78,19 +89,25 @@ public class RefundServiceImpl implements RefundService {
             log.error("支付单不存在，orderSn：{}", requestParam.getOrderSn());
             throw new ServiceException("支付单不存在");
         }
+
+        // 更新支付单的支付金额
         payDO.setPayAmount(payDO.getTotalAmount() - requestParam.getRefundAmount());
-        //创建退款单
+
+        // 创建退款单
         RefundCreateDTO refundCreateDTO = BeanUtil.convert(requestParam, RefundCreateDTO.class);
         refundCreateDTO.setPaySn(payDO.getPaySn());
         createRefund(refundCreateDTO);
+
         /**
+         * 使用策略模式动态选择退款组件并执行退款操作
          * {@link AliRefundNativeHandler}
          */
-        // 策略模式：通过策略模式封装退款渠道和退款场景，用户退款时动态选择对应的退款组件
         RefundCommand refundCommand = BeanUtil.convert(payDO, RefundCommand.class);
         refundCommand.setPayAmount(new BigDecimal(requestParam.getRefundAmount()));
         RefundRequest refundRequest = RefundRequestConvert.command2RefundRequest(refundCommand);
         RefundResponse result = abstractStrategyChoose.chooseAndExecuteResp(refundRequest.buildMark(), refundRequest);
+
+        // 更新支付单状态
         payDO.setStatus(result.getStatus());
         LambdaUpdateWrapper<PayDO> updateWrapper = Wrappers.lambdaUpdate(PayDO.class)
                 .eq(PayDO::getOrderSn, requestParam.getOrderSn());
@@ -99,6 +116,8 @@ public class RefundServiceImpl implements RefundService {
             log.error("修改支付单退款结果失败，支付单信息：{}", JSON.toJSONString(payDO));
             throw new ServiceException("修改支付单退款结果失败");
         }
+
+        // 更新退款单状态
         LambdaUpdateWrapper<RefundDO> refundUpdateWrapper = Wrappers.lambdaUpdate(RefundDO.class)
                 .eq(RefundDO::getOrderSn, requestParam.getOrderSn());
         RefundDO refundDO = new RefundDO();
@@ -109,7 +128,8 @@ public class RefundServiceImpl implements RefundService {
             log.error("修改退款单退款结果失败，退款单信息：{}", JSON.toJSONString(refundDO));
             throw new ServiceException("修改退款单退款结果失败");
         }
-        // 退款成功，回调订单服务告知退款结果，修改订单流转状态
+
+        // 如果退款成功，回调订单服务以更新订单状态
         if (Objects.equals(result.getStatus(), TradeStatusEnum.TRADE_CLOSED.tradeCode())) {
             RefundResultCallbackOrderEvent refundResultCallbackOrderEvent = RefundResultCallbackOrderEvent.builder()
                     .orderSn(requestParam.getOrderSn())
@@ -118,7 +138,8 @@ public class RefundServiceImpl implements RefundService {
                     .build();
             refundResultCallbackOrderSendProduce.sendMessage(refundResultCallbackOrderEvent);
         }
-        //TODO 暂时返回空实体
+
+        // TODO 暂时返回空实体
         return refundRespDTO;
     }
 

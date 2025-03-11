@@ -19,6 +19,9 @@ import AdminOrderSerach from '../views/admin-order-search'
 import AdminUser from '../views/admin-user'
 import AdminFinance from '../views/admin-finance'
 import Cookies from 'js-cookie'
+import { mapGetters } from 'vuex';
+
+// 路由
 const routes = [
   {
     path: '/',
@@ -167,24 +170,40 @@ const routes = [
   }
 ]
 
+// 创建路由实例
 const router = createRouter({
   history: createWebHistory(process.env.BASE_URL),
   routes
 })
 
+
+/**
+ * 路由全局前置守卫，用于在每次路由跳转前执行一些逻辑。
+ * 该函数会检查目标路由是否需要认证，以及用户是否已登录。
+ * 如果用户未登录且目标路由需要认证，则重定向到登录页面。
+ *
+ * @param {Object} to - 目标路由对象，包含目标路由的信息。
+ * @param {Object} from - 来源路由对象，包含来源路由的信息。
+ * @returns {Object|undefined} - 如果用户未登录且目标路由需要认证，则返回一个重定向对象，否则返回undefined。
+ */
 router.beforeEach(async (to, from) => {
-  // console.log(Cookies.get('username'))
-  // console.log(to, 'to')
-  // console.log(from, 'from')
+  const isAuthenticated = localStorage.getItem('isAuthenticated');
+  // 检查目标路由是否需要认证，并且目标路由不是登录页面
   if (
     to.meta?.requiresAuth &&
     to.name !== 'login' &&
-    (!Cookies.get('username') || !Cookies.get('token'))
+    // 检查用户是否未登录（即没有username或token）
+    (!Cookies.get('username') || !Cookies.get('token')) &&
+    !isAuthenticated
   ) {
+    // 显示错误消息，提示用户未登录或登录已过期
     message.error('用户未登录或已过期！')
+    // 重定向到登录页面
     return {
       name: 'login'
     }
+  }else {
+    
   }
 })
 

@@ -54,6 +54,7 @@ watch(
       <Header :isLogin="isLogin" />
       <Layout class="page-wrapper" :class="{ isLogin }">
         <Sider v-if="!isLogin" />
+        <!-- <SiderAdmin v-else-if="isAdmin" /> -->
         <Content class="app-wrapper" :class="{ isLogin }">
           <ConfigProvider :locale="zhCN">
             <BreadHeader v-if="!isLogin" /> <router-view /> 

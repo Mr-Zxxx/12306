@@ -21,6 +21,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import org.opengoofy.index12306.framework.starter.database.base.BaseDO;
 
+import java.time.LocalTime;
 import java.util.Date;
 
 /**
@@ -79,4 +80,14 @@ public class TrainStationRelationDO extends BaseDO {
      * 到达时间
      */
     private Date arrivalTime;
+
+    /**
+     * 出发开始时间
+     */
+    private LocalTime startTime;
+
+    /**
+     * 到达结束时间
+     */
+    private LocalTime endTime;
 }

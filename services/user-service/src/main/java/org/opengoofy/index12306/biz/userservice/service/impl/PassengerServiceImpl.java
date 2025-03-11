@@ -63,23 +63,50 @@ public class PassengerServiceImpl implements PassengerService {
     private final PassengerMapper passengerMapper;
     private final DistributedCache distributedCache;
 
+    /**
+     * 根据用户名查询乘客列表
+     *
+     * 本方法首先根据用户名获取乘客列表字符串，然后将该字符串解析为乘客对象列表，
+     * 最后将乘客对象列表转换为响应DTO列表如果乘客列表字符串为空，则返回null
+     *
+     * @param username 用户名，用于查询乘客信息
+     * @return 乘客响应DTO列表，可能为null
+     */
     @Override
     public List<PassengerRespDTO> listPassengerQueryByUsername(String username) {
+        // 获取用户乘客列表字符串
         String actualUserPassengerListStr = getActualUserPassengerListStr(username);
+
+        // 判断乘客列表字符串是否为空，不为空则进行解析和转换
         return Optional.ofNullable(actualUserPassengerListStr)
                 .map(each -> JSON.parseArray(each, PassengerDO.class))
                 .map(each -> BeanUtil.convert(each, PassengerRespDTO.class))
                 .orElse(null);
     }
 
+
+    /**
+     * 获取用户乘客列表的字符串表示
+     * 首先尝试从分布式缓存中获取用户乘客列表的字符串表示如果缓存中不存在，则查询数据库，
+     * 将结果序列化为JSON字符串，并存入缓存中以提高下次访问效率
+     *
+     * @param username 用户名，用于查询乘客列表
+     * @return 用户乘客列表的JSON字符串表示，如果没有乘客或查询失败则返回null
+     */
     private String getActualUserPassengerListStr(String username) {
+        // 从分布式缓存中安全获取用户乘客列表的字符串表示
+        // 如果缓存中没有该数据，则通过Lambda表达式中的逻辑查询数据库并序列化结果
+        // 查询结果在1天内有效，以减少频繁查询数据库的开销
         return distributedCache.safeGet(
                 USER_PASSENGER_LIST + username,
                 String.class,
                 () -> {
+                    // 构建查询条件，查询指定用户的乘客列表
                     LambdaQueryWrapper<PassengerDO> queryWrapper = Wrappers.lambdaQuery(PassengerDO.class)
                             .eq(PassengerDO::getUsername, username);
+                    // 执行查询
                     List<PassengerDO> passengerDOList = passengerMapper.selectList(queryWrapper);
+                    // 如果查询结果不为空，则将其序列化为JSON字符串并返回，否则返回null
                     return CollUtil.isNotEmpty(passengerDOList) ? JSON.toJSONString(passengerDOList) : null;
                 },
                 1,
@@ -123,30 +150,45 @@ public class PassengerServiceImpl implements PassengerService {
         delUserPassengerCache(username);
     }
 
-    @Override
-    public void updatePassenger(PassengerReqDTO requestParam) {
-        verifyPassenger(requestParam);
-        String username = UserContext.getUsername();
-        try {
-            PassengerDO passengerDO = BeanUtil.convert(requestParam, PassengerDO.class);
-            passengerDO.setUsername(username);
-            LambdaUpdateWrapper<PassengerDO> updateWrapper = Wrappers.lambdaUpdate(PassengerDO.class)
-                    .eq(PassengerDO::getUsername, username)
-                    .eq(PassengerDO::getId, requestParam.getId());
-            int updated = passengerMapper.update(passengerDO, updateWrapper);
-            if (!SqlHelper.retBool(updated)) {
-                throw new ServiceException(String.format("[%s] 修改乘车人失败", username));
-            }
-        } catch (Exception ex) {
-            if (ex instanceof ServiceException) {
-                log.error("{}，请求参数：{}", ex.getMessage(), JSON.toJSONString(requestParam));
-            } else {
-                log.error("[{}] 修改乘车人失败，请求参数：{}", username, JSON.toJSONString(requestParam), ex);
-            }
-            throw ex;
+// 更新乘客信息的方法
+@Override
+public void updatePassenger(PassengerReqDTO requestParam) {
+    // 验证乘客信息的有效性
+    verifyPassenger(requestParam);
+    // 获取当前操作用户
+    String username = UserContext.getUsername();
+    try {
+        // 将请求参数转换为乘客实体对象
+        PassengerDO passengerDO = BeanUtil.convert(requestParam, PassengerDO.class);
+        // 设置乘客实体对象的用户名
+        passengerDO.setUsername(username);
+        // 创建更新条件构造器
+        LambdaUpdateWrapper<PassengerDO> updateWrapper = Wrappers.lambdaUpdate(PassengerDO.class)
+                .eq(PassengerDO::getUsername, username)
+                .eq(PassengerDO::getId, requestParam.getId());
+        // 执行更新操作
+        int updated = passengerMapper.update(passengerDO, updateWrapper);
+        // 检查更新结果
+        if (!SqlHelper.retBool(updated)) {
+            // 如果更新失败，抛出服务异常
+            throw new ServiceException(String.format("[%s] 修改乘车人失败", username));
         }
-        delUserPassengerCache(username);
+    } catch (Exception ex) {
+        // 处理可能的异常
+        if (ex instanceof ServiceException) {
+            // 如果是服务异常，记录错误日志
+            log.error("{}，请求参数：{}", ex.getMessage(), JSON.toJSONString(requestParam));
+        } else {
+            // 如果是其他异常，记录更详细的错误日志
+            log.error("[{}] 修改乘车人失败，请求参数：{}", username, JSON.toJSONString(requestParam), ex);
+        }
+        // 重新抛出异常
+        throw ex;
     }
+    // 删除用户的乘客缓存
+    delUserPassengerCache(username);
+}
+
 
     @Override
     public void removePassenger(PassengerRemoveReqDTO requestParam) {

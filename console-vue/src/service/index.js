@@ -1,5 +1,6 @@
 import http from './axios'
 
+// 登录
 const fetchLogin = async (body) => {
   const { data } = await http({
     method: 'POST',
@@ -10,6 +11,7 @@ const fetchLogin = async (body) => {
   return data
 }
 
+// 注册
 const fetchRegister = async (body) => {
   const { data } = await http({
     method: 'POST',
@@ -19,6 +21,7 @@ const fetchRegister = async (body) => {
   return data
 }
 
+// 车票信息
 const fetchTicketSearch = async (params) => {
   const { data } = await http({
     method: 'GET',
@@ -28,6 +31,7 @@ const fetchTicketSearch = async (params) => {
   return data
 }
 
+// 站点信息
 const fetchRegionStation = async (params) => {
   const { data } = await http({
     method: 'GET',
@@ -37,6 +41,7 @@ const fetchRegionStation = async (params) => {
   return data
 }
 
+// 乘客信息
 const fetchPassengerList = async (params) => {
   const { data } = await http({
     method: 'GET',
@@ -45,6 +50,8 @@ const fetchPassengerList = async (params) => {
   })
   return data
 }
+
+// 删除乘客信息
 const fetchDeletePassenger = async (body) => {
   const { data } = await http({
     method: 'POST',
@@ -54,6 +61,7 @@ const fetchDeletePassenger = async (body) => {
   return data
 }
 
+// 新增乘客信息
 const fetchAddPassenger = async (body) => {
   const { data } = await http({
     method: 'POST',
@@ -63,6 +71,7 @@ const fetchAddPassenger = async (body) => {
   return data
 }
 
+// 修改乘客信息
 const fetchEditPassenger = async (body) => {
   const { data } = await http({
     method: 'POST',
@@ -71,6 +80,8 @@ const fetchEditPassenger = async (body) => {
   })
   return data
 }
+
+// 退出登录
 const fetchLogout = async (body) => {
   const { data } = await http({
     method: 'GET',
@@ -81,6 +92,7 @@ const fetchLogout = async (body) => {
   return data
 }
 
+// 购买车票
 const fetchBuyTicket = async (body) => {
   const { data } = await http({
     method: 'POST',
@@ -90,6 +102,7 @@ const fetchBuyTicket = async (body) => {
   return data
 }
 
+// 订单详情
 const fetchOrderBySn = async (params) => {
   const { data } = await http({
     method: 'GET',
@@ -99,6 +112,7 @@ const fetchOrderBySn = async (params) => {
   return data
 }
 
+// 支付
 const fetchPay = async (body) => {
   const { data } = await http({
     method: 'POST',
@@ -108,6 +122,7 @@ const fetchPay = async (body) => {
   return data
 }
 
+// 站点信息
 const fetchStationAll = async () => {
   const { data } = await http({
     method: 'GET',
@@ -116,6 +131,7 @@ const fetchStationAll = async () => {
   return data
 }
 
+// 用户信息
 const fetchUserInfo = async (params) => {
   const { data } = await http({
     method: 'GET',
@@ -125,6 +141,7 @@ const fetchUserInfo = async (params) => {
   return data
 }
 
+// 车次站点
 const fetchTrainStation = async (params) => {
   const { data } = await http({
     method: 'GET',
@@ -134,6 +151,7 @@ const fetchTrainStation = async (params) => {
   return data
 }
 
+// 订单列表
 const fetchTicketList = async (params) => {
   const { data } = await http({
     method: 'GET',
@@ -143,6 +161,7 @@ const fetchTicketList = async (params) => {
   return data
 }
 
+// 取消订单
 const fetchOrderCancel = async (body) => {
   const { data } = await http({
     method: 'POST',
@@ -152,6 +171,7 @@ const fetchOrderCancel = async (body) => {
   return data
 }
 
+// 修改用户信息
 const fetchUserUpdate = async (body) => {
   const { data } = await http({
     method: 'POST',
@@ -161,6 +181,7 @@ const fetchUserUpdate = async (body) => {
   return data
 }
 
+// 订单状态
 const fetchOrderStatus = async (params) => {
   const { data } = await http({
     method: 'GET',
@@ -170,6 +191,7 @@ const fetchOrderStatus = async (params) => {
   return data
 }
 
+// 我的车票
 const fetchMyTicket = async (params) => {
   const { data } = await http({
     method: 'GET',
@@ -179,6 +201,7 @@ const fetchMyTicket = async (params) => {
   return data
 }
 
+// 退票
 const fetchRefundTicket = async (body) => {
   const { data } = await http({
     method: 'POST',
@@ -187,6 +210,16 @@ const fetchRefundTicket = async (body) => {
   })
 }
 
+// 管理员登录
+const fetchAdminLogin = async (body) => {
+  const { data } = await http({
+    method: 'POST',
+    url: '/admin/admin-service/login',
+    data: body
+  })
+  http.defaults.headers.common['Authorization'] = data.data?.accessToken
+  return data
+}
 export {
   fetchLogin,
   fetchRegister,

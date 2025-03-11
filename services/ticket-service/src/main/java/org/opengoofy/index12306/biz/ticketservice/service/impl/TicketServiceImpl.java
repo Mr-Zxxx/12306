@@ -30,6 +30,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.Lists;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 import org.opengoofy.index12306.biz.ticketservice.common.enums.RefundTypeEnum;
 import org.opengoofy.index12306.biz.ticketservice.common.enums.SourceEnum;
 import org.opengoofy.index12306.biz.ticketservice.common.enums.TicketChainMarkEnum;
@@ -97,6 +98,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -364,7 +366,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
     @Override
     //订购车票
     public TicketPurchaseRespDTO purchaseTicketsV2(PurchaseTicketReqDTO requestParam) {
-        // 责任链模式，验证 1：参数必填 2：参数正确性 3：乘客是否已买当前车次
+        // 责任链模式验证 1：参数必填项 2：参数正确性 3：乘客是否已买当前车次
         purchaseTicketAbstractChainContext.handler(TicketChainMarkEnum.TRAIN_PURCHASE_TICKET_FILTER.name(), requestParam);
         TokenResultDTO tokenResult = ticketAvailabilityTokenBucket.takeTokenFromBucket(requestParam);
         if (tokenResult.getTokenIsNull()) {
@@ -432,22 +434,22 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
 
     @Override
     @Transactional(rollbackFor = Throwable.class)
-        //执行购票方法
+    // 执行购票方法
     public TicketPurchaseRespDTO executePurchaseTickets(PurchaseTicketReqDTO requestParam) {
-        //初始化订单详情列表
+        // 初始化订单详情列表
         List<TicketOrderDetailRespDTO> ticketOrderDetailResults = new ArrayList<>();
         String trainId = requestParam.getTrainId();
-        //从分布式缓存Redis中获取列车信息
+        // 从分布式缓存Redis中获取列车信息
         TrainDO trainDO = distributedCache.safeGet(
                 TRAIN_INFO + trainId,
                 TrainDO.class,
-                //如果缓存中没有，从数据库查询，并将结果缓存一段时间
+                // 如果缓存中没有，从数据库查询，并将结果缓存一段时间
                 () -> trainMapper.selectById(trainId),
                 ADVANCE_TICKET_DAY,
                 TimeUnit.DAYS);
-        //使用选座方法根据列车类型和购票请求选择可用座位
+        // 使用选座方法根据列车类型和购票请求选择可用座位
         List<TrainPurchaseTicketRespDTO> trainPurchaseTicketResults = trainSeatTypeSelector.select(trainDO.getTrainType(), requestParam);
-        //封装成DO
+        // 封装成DO
         List<TicketDO> ticketDOList = trainPurchaseTicketResults.stream()
                 .map(each -> TicketDO.builder()
                         .username(UserContext.getUsername())
@@ -458,26 +460,28 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
                         .ticketStatus(TicketStatusEnum.UNPAID.getCode())
                         .build())
                 .toList();
-        //批量保存
+        // 批量保存
         saveBatch(ticketDOList);
         Result<String> ticketOrderResult;
-        //创建订单
+        // 创建订单
         try {
-            //构建订单子项，包含购票详情
+            // 构建订单子项，包含购票详情
             List<TicketOrderItemCreateRemoteReqDTO> orderItemCreateRemoteReqDTOList = new ArrayList<>();
+            // 遍历训练购票结果集，处理每个购票结果
             trainPurchaseTicketResults.forEach(each -> {
+                // 创建票务订单项请求DTO，用于远程请求
                 TicketOrderItemCreateRemoteReqDTO orderItemCreateRemoteReqDTO = TicketOrderItemCreateRemoteReqDTO.builder()
-                        .amount(each.getAmount())
-                        .carriageNumber(each.getCarriageNumber())
-                        .seatNumber(each.getSeatNumber())
-                        .idCard(each.getIdCard())
-                        .idType(each.getIdType())
-                        .phone(each.getPhone())
-                        .seatType(each.getSeatType())
-                        .ticketType(each.getUserType())
-                        .realName(each.getRealName())
-                        .build();
-                //同时构建订单详情响应对象
+                    .amount(each.getAmount()) // 设置票务订单项的金额
+                    .carriageNumber(each.getCarriageNumber()) // 设置车厢号
+                    .seatNumber(each.getSeatNumber()) // 设置座位号
+                    .idCard(each.getIdCard()) // 设置身份证号
+                    .idType(each.getIdType()) // 设置证件类型
+                    .phone(each.getPhone()) // 设置联系电话
+                    .seatType(each.getSeatType()) // 设置座位类型
+                    .ticketType(each.getUserType()) // 设置票务类型
+                    .realName(each.getRealName()) // 设置真实姓名
+                    .build(); // 构建票务订单项请求DTO实例
+                // 同时构建订单详情响应对象
                 TicketOrderDetailRespDTO ticketOrderDetailRespDTO = TicketOrderDetailRespDTO.builder()
                         .amount(each.getAmount())
                         .carriageNumber(each.getCarriageNumber())
@@ -491,30 +495,46 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
                 orderItemCreateRemoteReqDTOList.add(orderItemCreateRemoteReqDTO);
                 ticketOrderDetailResults.add(ticketOrderDetailRespDTO);
             });
-            //使用MP的查询包装器查询列车站点关系信息
+            // 使用MP的查询包装器查询列车站点关系信息
             LambdaQueryWrapper<TrainStationRelationDO> queryWrapper = Wrappers.lambdaQuery(TrainStationRelationDO.class)
                     .eq(TrainStationRelationDO::getTrainId, trainId)
                     .eq(TrainStationRelationDO::getDeparture, requestParam.getDeparture())
                     .eq(TrainStationRelationDO::getArrival, requestParam.getArrival());
             TrainStationRelationDO trainStationRelationDO = trainStationRelationMapper.selectOne(queryWrapper);
-            //构建订单对象
+            // 构建订单对象
+            // 设置出发时间 到达时间
+            Date departure_Time = Date.from(requestParam.getRidingDate().atTime(trainStationRelationDO.getStartTime()).atZone(ZoneId.systemDefault()).toInstant());
+            Date arrival_Time = Date.from(requestParam.getRidingDate().atTime(trainStationRelationDO.getEndTime()).atZone(ZoneId.systemDefault()).toInstant());
+            // 创建TicketOrderCreateRemoteReqDTO对象，用于处理票务订单创建请求
             TicketOrderCreateRemoteReqDTO orderCreateRemoteReqDTO = TicketOrderCreateRemoteReqDTO.builder()
+                    // 设置出发地
                     .departure(requestParam.getDeparture())
+                    // 设置目的地
                     .arrival(requestParam.getArrival())
+                    // 设置订单创建时间
                     .orderTime(new Date())
+                    // 设置订单来源为互联网
                     .source(SourceEnum.INTERNET.getCode())
+                    // 设置列车编号
                     .trainNumber(trainDO.getTrainNumber())
-                    .departureTime(trainStationRelationDO.getDepartureTime())
-                    .arrivalTime(trainStationRelationDO.getArrivalTime())
-                    .ridingDate(trainStationRelationDO.getDepartureTime())
+                    // 设置出发时间
+                    .departureTime(departure_Time)
+                    // 设置到达时间
+                    .arrivalTime(arrival_Time)
+                    // 设置乘车日期
+                    .ridingDate(departure_Time)
+                    // 设置用户ID
                     .userId(UserContext.getUserId())
+                    // 设置用户名
                     .username(UserContext.getUsername())
+                    // 设置列车ID
                     .trainId(Long.parseLong(requestParam.getTrainId()))
+                    // 设置票务订单项列表
                     .ticketOrderItems(orderItemCreateRemoteReqDTOList)
                     .build();
-            //调用远程订单服务创建订单
+            // 调用远程订单服务创建订单
             ticketOrderResult = ticketOrderRemoteService.createTicketOrder(orderCreateRemoteReqDTO);
-            //如果订单创建失败，抛出异常
+            // 如果订单创建失败，抛出异常
             if (!ticketOrderResult.isSuccess() || StrUtil.isBlank(ticketOrderResult.getData())) {
                 log.error("订单服务调用失败，返回结果：{}", ticketOrderResult.getMessage());
                 throw new ServiceException("订单服务调用失败");
@@ -523,7 +543,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
             log.error("远程调用订单服务创建错误，请求参数：{}", JSON.toJSONString(requestParam), ex);
             throw ex;
         }
-        //返回结果
+        // 返回结果
         return new TicketPurchaseRespDTO(ticketOrderResult.getData(), ticketOrderDetailResults);
     }
 
@@ -568,20 +588,32 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
         }
     }
 
+    /**
+     * 处理车票退票请求，根据退票类型（部分退票或全额退票）执行相应的退票逻辑。
+     *
+     * @param requestParam 包含退票请求参数的DTO对象，包括订单号、退票类型等信息。
+     * @return RefundTicketRespDTO 退票响应DTO，当前实现中暂时返回空实体。
+     * @throws ServiceException 如果车票订单不存在、车票子订单不存在或退票失败时抛出异常。
+     */
     @Override
     public RefundTicketRespDTO commonTicketRefund(RefundTicketReqDTO requestParam) {
+        // 执行退票请求的过滤链处理
         refundReqDTOAbstractChainContext.handler(TicketChainMarkEnum.TRAIN_REFUND_TICKET_FILTER.name(), requestParam);
+        // 根据订单号查询车票订单详情
         Result<org.opengoofy.index12306.biz.ticketservice.remote.dto.TicketOrderDetailRespDTO> orderDetailRespDTOResult = ticketOrderRemoteService.queryTicketOrderByOrderSn(requestParam.getOrderSn());
         if (!orderDetailRespDTOResult.isSuccess() && Objects.isNull(orderDetailRespDTOResult.getData())) {
             throw new ServiceException("车票订单不存在");
         }
+        // 获取车票订单详情
         org.opengoofy.index12306.biz.ticketservice.remote.dto.TicketOrderDetailRespDTO ticketOrderDetailRespDTO = orderDetailRespDTOResult.getData();
         List<TicketOrderPassengerDetailRespDTO> passengerDetails = ticketOrderDetailRespDTO.getPassengerDetails();
         if (CollectionUtil.isEmpty(passengerDetails)) {
             throw new ServiceException("车票子订单不存在");
         }
+        // 根据退票类型初始化退票请求DTO
         RefundReqDTO refundReqDTO = new RefundReqDTO();
         if (RefundTypeEnum.PARTIAL_REFUND.getType().equals(requestParam.getType())) {
+            // 部分退票：根据子订单记录ID查询对应的乘客详情，并设置到退票请求中
             TicketOrderItemQueryReqDTO ticketOrderItemQueryReqDTO = new TicketOrderItemQueryReqDTO();
             ticketOrderItemQueryReqDTO.setOrderSn(requestParam.getOrderSn());
             ticketOrderItemQueryReqDTO.setOrderItemRecordIds(requestParam.getSubOrderRecordIdReqList());
@@ -592,21 +624,25 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
             refundReqDTO.setRefundTypeEnum(RefundTypeEnum.PARTIAL_REFUND);
             refundReqDTO.setRefundDetailReqDTOList(partialRefundPassengerDetails);
         } else if (RefundTypeEnum.FULL_REFUND.getType().equals(requestParam.getType())) {
+            // 全额退票：将所有乘客详情设置到退票请求中
             refundReqDTO.setRefundTypeEnum(RefundTypeEnum.FULL_REFUND);
             refundReqDTO.setRefundDetailReqDTOList(passengerDetails);
         }
+        // 计算退票金额并设置到退票请求中
         if (CollectionUtil.isNotEmpty(passengerDetails)) {
             Integer partialRefundAmount = passengerDetails.stream()
                     .mapToInt(TicketOrderPassengerDetailRespDTO::getAmount)
                     .sum();
             refundReqDTO.setRefundAmount(partialRefundAmount);
         }
+        // 设置订单号并执行退票操作
         refundReqDTO.setOrderSn(requestParam.getOrderSn());
         Result<RefundRespDTO> refundRespDTOResult = payRemoteService.commonRefund(refundReqDTO);
         if (!refundRespDTOResult.isSuccess() && Objects.isNull(refundRespDTOResult.getData())) {
             throw new ServiceException("车票订单退款失败");
         }
-        return null; // 暂时返回空实体
+        // 暂时返回空实体
+        return null;
     }
 
     private List<String> buildDepartureStationList(List<TicketListDTO> seatResults) {

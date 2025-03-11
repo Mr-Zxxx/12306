@@ -6,66 +6,16 @@
   }">
     <!-- 侧边栏 -->
     <Sider :collapsed="state.collapse" collapsible :trigger="null" @collapse="handleCollapse">
-      <Menu v-model:selectedKeys="selectedKeys" mode="inline">
-        <SubMenu key="sub1" @titleClick="titleClick">
-          <template #icon>
-            <IconFont type="icon-icon_yingyongguanli" />
-          </template>
-          <template #title>车票管理 </template>
-          <Item key="ticketSearch">
-            <RouterLink to="/ticketSearch">车票查询</RouterLink>
-          </Item>
-        </SubMenu>
-        <!-- 个人信息管理 -->
-        <SubMenu key="sub2" @titleClick="titleClick">
-          <template #icon>
-            <IconFont type="icon-pingtaixinxiguanli" />
-          </template>
-          <template #title>常用信息管理</template>
-          <Item key="userInfo">
-            <RouterLink to="/userInfo">个人信息</RouterLink>
-          </Item>
-          <Item key="passenger">
-            <RouterLink to="/passenger">乘车人</RouterLink>
-          </Item>
-        </SubMenu>
-        <!-- 订单管理 -->
-        <SubMenu key="sub4" @titleClick="titleClick">
-          <template #icon>
-            <IconFont type="icon-dingdan" />
-          </template>
-          <template #title>订单管理</template>
-          <Item key="order">
-            <RouterLink to="/ticketList">车票订单</RouterLink>
-          </Item>
-          <Item key="personalTicket">
-            <RouterLink to="/personalTicket">本人车票</RouterLink>
-          </Item>
-        </SubMenu>
-        <!-- 管理员功能 -->
-        <SubMenu key="sub5" @titleClick="titleClick">
-          <template #icon>
-            <IconFont type="icon-dingdan" />
-          </template>
-          <template #title>管理员功能</template>
-          <Item key="train">
-            <RouterLink to="/adminTrainList">车次查询</RouterLink>
-          </Item>
-          <Item key="user">
-            <RouterLink to="/adminUser">用户管理</RouterLink>
-          </Item>
-          <Item key="orderManagement">
-            <RouterLink to="/adminOrderSerach">订单查询</RouterLink>
-          </Item>
-          <Item key="finance">
-            <RouterLink to="/adminFinance">财务统计</RouterLink>
-          </Item>
-        </SubMenu>
+      <Menu v-model:selectedKeys="selectedKeys" mode="inline" v-for="item in menuItems">
+        <Item :key=item>
+          <RouterLink :to=item.link>{{ item.name }}</RouterLink>
+        </Item>
       </Menu>
     </Sider>
     <!-- 侧边栏底部 -->
     <div class="sider-footer" :style="{
-      width: !state.collapse ? '200px' : '80px'}">
+      width: !state.collapse ? '200px' : '80px',
+    }">
       <Tooltip title="折起">
         <div :class="state.collapse && 'collaspe-icon'" @click="() => (state.collapse = !state.collapse)"
           class="icon-wrapper">
@@ -83,22 +33,87 @@
 </template>
 
 <script setup>
-import { defineProps, reactive } from 'vue'
+import { defineProps, reactive, computed, ref, onMounted } from 'vue'
 import IconFont from '@/components/icon-font'
 import { Layout, Menu, Divider, message, Tooltip } from 'ant-design-vue'
 import { fetchLogout } from '@/service'
 import { RouterLink } from 'vue-router'
 import Cookie from 'js-cookie'
+import { useStore } from 'vuex';
+const collapsed = ref(false);
+const selectedKeys = ref(['1']);
+
 const { SubMenu, Item } = Menu
 const { Sider } = Layout
 const props = defineProps({
   isLogin: Boolean
 })
-
 const state = reactive({
   collapse: false
 })
+const store = useStore();
+// 获取登录状态
+const isAuthenticated = computed(() => store.getters.isAuthenticated);
+const isAdmin = computed(() => store.getters.isAdmin);
 
+
+const userSider = [
+  {
+    name: '车票查询',
+    link: '/ticketSearch',
+    key: 'ticketSearch'
+  },
+  {
+    name: '个人信息',
+    link: '/userInfo',
+    key: 'userInfo'
+  },
+  {
+    name: '车票订单',
+    link: '/ticketList',
+    key: 'ticketList'
+  },
+  {
+    name: '乘车人管理',
+    link: '/passenger',
+    key: 'passenger'
+  },
+  // {
+  //   name: '本人车票',
+  //   link: '/personalTicket',
+  //   key: 'personalTicket'
+  // }
+]
+const adminSider = [
+  {
+    name: '车次查询',
+    link: '/adminTrainList',
+    key: 'adminTrainList'
+  },
+  {
+    name: '用户管理',
+    link: '/adminUser',
+    key: 'adminUser'
+  },
+  {
+    name: '订单查询',
+    link: '/adminOrderSerach',
+    key: 'adminOrderSerach'
+  },
+  {
+    name: '财务统计',
+    link: '/adminFinance',
+    key: 'adminFinance'
+  }
+]
+
+const menuItems = computed(() => {
+  if (isAdmin.value) {
+    return adminSider
+  } else {
+    return userSider
+  }
+})
 // 侧边栏折叠
 const handleCollapse = () => {
   state.collapse = !state.collapse
@@ -114,6 +129,7 @@ const logout = () => {
     }
   })
 }
+
 </script>
 
 <style lang="scss" scoped>
@@ -208,4 +224,5 @@ const logout = () => {
     user-select: none;
   }
 }
+
 </style>

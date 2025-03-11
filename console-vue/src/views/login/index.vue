@@ -1,4 +1,4 @@
-<script  setup>
+<script setup>
 import {
   Form,
   FormItem,
@@ -16,20 +16,18 @@ import { fetchLogin, fetchRegister } from '../../service'
 import { UserOutlined, LockOutlined } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
 import Cookies from 'js-cookie'
+import { useStore } from 'vuex';
 const useForm = Form.useForm
 
 const userOrAdmin = ref(1);
-
 const formState = reactive({
   usernameOrMailOrPhone: 'admin',
   password: 'admin123456',
   code: ''
 })
-
 const state = reactive({
   open: false
 })
-
 const rulesRef = reactive({
   usernameOrMailOrPhone: [
     {
@@ -44,9 +42,9 @@ const rulesRef = reactive({
     }
   ]
 })
-
 const { validate, validateInfos } = useForm(formState, rulesRef)
 
+// 注册表单数据
 const registerForm = reactive({
   username: '',
   password: '',
@@ -56,7 +54,7 @@ const registerForm = reactive({
   phone: '',
   mail: ''
 })
-
+// 注册表单验证规则
 const registerRules = reactive({
   username: [
     {
@@ -85,19 +83,31 @@ const registerRules = reactive({
   idCard: [
     {
       required: true,
-      message: '请输入证件号码'
+      message: '请输入身份证号码',
+    },
+    {
+      pattern: /^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/,
+      message: '身份证号码格式不正确',
     }
   ],
   phone: [
     {
       required: true,
-      message: '请输入电话号码'
+      message: '请输入手机号',
+    },
+    {
+      pattern: /^1(3|5|6|7|8)[0-9]{9}$/,
+      message: '格式不正确',
     }
   ],
   mail: [
     {
       required: true,
-      message: '请输入邮箱'
+      message: '请输入邮箱地址',
+    },
+    {
+      pattern: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}$/,
+      message: '邮箱格式不正确',
     }
   ]
 })
@@ -108,10 +118,20 @@ const { validate: registerValidate, validateInfos: registerValidateInfos } =
 let currentAction = ref('login')
 
 const router = useRouter()
-
-// 登录方法
+const store = useStore()
+// 使用store.dispatch方法调用loginAction，传入用户信息
+const handleLogin = async (user) => {
+  await store.dispatch('login', user);
+  console.log('用户登录身份信息如下：');
+  console.log(user);
+}
+/**
+ * 处理登录逻辑的函数
+**/
 const handleFinish = () => {
+  // 检查当前域名是否包含'12306'
   if (location.host.indexOf('12306') !== -1) {
+    // 验证成功后打开某个状态
     validate()
       .then(() => {
         state.open = true
@@ -119,41 +139,29 @@ const handleFinish = () => {
       .catch((err) => console.log(err))
     return
   }
+  // 非特定站点，执行登录逻辑
   validate().then(() => {
+    // 用户身份信息
+    const user = {
+      name: formState.usernameOrMailOrPhone,
+      role: userOrAdmin.value
+    };
+    handleLogin(user)
     fetchLogin({
       ...formState
     }).then((res) => {
       if (res.success) {
+        // 登录成功，设置Cookie并跳转页面
         Cookies.set('token', res.data?.accessToken)
         Cookies.set('username', res.data?.username)
         Cookies.set('userId', res.data?.userId)
         router.push('/ticketSearch')
       } else {
+        // 登录失败，显示错误信息
         message.error(res.message)
       }
     })
   })
-}
-
-const handleLogin = () => {
-  if (!formState.code) return message.error('请输入验证码')
-  validate()
-    .then(() => {
-      fetchLogin({
-        usernameOrMailOrPhone: formState.usernameOrMailOrPhone,
-        password: formState.code
-      }).then((res) => {
-        if (res.success) {
-          Cookies.set('token', res.data?.accessToken)
-          Cookies.set('userId', res.data?.userId)
-          Cookies.set('username', res.data?.username)
-          router.push('/ticketSearch')
-        } else {
-          message.error(res.message)
-        }
-      })
-    })
-    .catch((err) => console.log(err))
 }
 
 const registerSubmit = () => {
@@ -213,14 +221,16 @@ const registerSubmit = () => {
             <FormItem>
               <div class="action-btn">
                 <a href="">忘记密码？</a>
+                <!-- 登录按钮 -->
                 <Button type="primary" :style="{ backgroundColor: '#202020', border: 'none' }"
                   @click="handleFinish">登录</Button>
               </div>
-              <br/>
+              <br />
+              <!-- 用户登录/管理员登录 -->
               <div>
                 <a-radio-group v-model:value="userOrAdmin">
-                  <a-radio :value="1">用户登录</a-radio>
-                  <a-radio :value="2">管理员登录</a-radio>
+                  <a-radio :value=1>用户登录</a-radio>
+                  <a-radio :value=2>管理员登录</a-radio>
                 </a-radio-group>
               </div>
             </FormItem>
@@ -244,7 +254,8 @@ const registerSubmit = () => {
               </Input>
             </FormItem>
             <FormItem label="证件类型" v-bind="registerValidateInfos.idType">
-              <Select :options="[{ value: 0, label: '中国居民身份证' }, { value: 1, label: '港澳通行证' }, { value: 2, label: '护照' }]"
+              <Select
+                :options="[{ value: 0, label: '中国居民身份证' }, { value: 1, label: '港澳通行证' }, { value: 2, label: '护照' }]"
                 v-model:value="registerForm.idType" placeholder="请选择证件类型"></Select>
             </FormItem>
             <FormItem label="证件号码" v-bind="registerValidateInfos.idCard">

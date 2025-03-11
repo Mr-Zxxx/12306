@@ -20,6 +20,9 @@ package org.opengoofy.index12306.biz.ticketservice.dto.req;
 import lombok.Data;
 import org.opengoofy.index12306.biz.ticketservice.dto.domain.PurchaseTicketPassengerDetailDTO;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -52,4 +55,9 @@ public class PurchaseTicketReqDTO {
      * 到达站点
      */
     private String arrival;
+
+    /**
+     * 乘车日期
+     */
+    private LocalDate ridingDate;
 }

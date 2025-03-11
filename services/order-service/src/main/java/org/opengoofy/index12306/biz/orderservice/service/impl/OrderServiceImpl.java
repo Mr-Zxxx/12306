@@ -86,16 +86,29 @@ public class OrderServiceImpl implements OrderService {
     private final DelayCloseOrderSendProduce delayCloseOrderSendProduce;
     private final UserRemoteService userRemoteService;
 
+    /**
+     * 根据订单编号查询机票订单详情
+     *
+     * @param orderSn 订单编号，用于查询特定的订单
+     * @return 返回机票订单的详细信息，包括乘客详情
+     */
     @Override
     public TicketOrderDetailRespDTO queryTicketOrderByOrderSn(String orderSn) {
+        // 创建查询条件，用于在Order表中查找与订单编号匹配的记录
         LambdaQueryWrapper<OrderDO> queryWrapper = Wrappers.lambdaQuery(OrderDO.class)
                 .eq(OrderDO::getOrderSn, orderSn);
+        // 执行查询，获取订单信息
         OrderDO orderDO = orderMapper.selectOne(queryWrapper);
+        // 将查询到的订单信息转换为响应DTO格式
         TicketOrderDetailRespDTO result = BeanUtil.convert(orderDO, TicketOrderDetailRespDTO.class);
+        // 创建查询条件，用于在OrderItem表中查找与订单编号匹配的所有记录
         LambdaQueryWrapper<OrderItemDO> orderItemQueryWrapper = Wrappers.lambdaQuery(OrderItemDO.class)
                 .eq(OrderItemDO::getOrderSn, orderSn);
+        // 执行查询，获取订单项列表
         List<OrderItemDO> orderItemDOList = orderItemMapper.selectList(orderItemQueryWrapper);
+        // 将查询到的订单项列表转换为乘客详情DTO格式，并设置到订单详情响应DTO中
         result.setPassengerDetails(BeanUtil.convert(orderItemDOList, TicketOrderPassengerDetailRespDTO.class));
+        // 返回订单详情响应DTO
         return result;
     }
 
@@ -121,25 +134,29 @@ public class OrderServiceImpl implements OrderService {
     public String createTicketOrder(TicketOrderCreateReqDTO requestParam) {
         // 通过基因法将用户 ID 融入到订单号
         String orderSn = OrderIdGeneratorManager.generateId(requestParam.getUserId());
-        OrderDO orderDO = OrderDO.builder().orderSn(orderSn)
-                .orderTime(requestParam.getOrderTime())
-                .departure(requestParam.getDeparture())
-                .departureTime(requestParam.getDepartureTime())
-                .ridingDate(requestParam.getRidingDate())
-                .arrivalTime(requestParam.getArrivalTime())
-                .trainNumber(requestParam.getTrainNumber())
-                .arrival(requestParam.getArrival())
-                .trainId(requestParam.getTrainId())
-                .source(requestParam.getSource())
-                .status(OrderStatusEnum.PENDING_PAYMENT.getStatus())
-                .username(requestParam.getUsername())
-                .userId(String.valueOf(requestParam.getUserId()))
-                .build();
+        // 创建OrderDO对象并初始化其属性
+        OrderDO orderDO = OrderDO.builder()
+                .orderSn(orderSn) // 设置订单编号
+                .orderTime(requestParam.getOrderTime()) // 设置订单时间
+                .departure(requestParam.getDeparture()) // 设置出发站
+                .departureTime(requestParam.getDepartureTime()) // 设置出发时间
+                .ridingDate(requestParam.getRidingDate()) // 设置乘车日期
+                .arrivalTime(requestParam.getArrivalTime()) // 设置到达时间
+                .trainNumber(requestParam.getTrainNumber()) // 设置车次
+                .arrival(requestParam.getArrival()) // 设置到达站
+                .trainId(requestParam.getTrainId()) // 设置列车ID
+                .source(requestParam.getSource()) // 设置票源
+                .status(OrderStatusEnum.PENDING_PAYMENT.getStatus()) // 设置订单状态为待支付
+                .username(requestParam.getUsername()) // 设置用户名
+                .userId(String.valueOf(requestParam.getUserId())) // 设置用户ID
+                .build(); // 构建OrderDO对象
         orderMapper.insert(orderDO);
         List<TicketOrderItemCreateReqDTO> ticketOrderItems = requestParam.getTicketOrderItems();
         List<OrderItemDO> orderItemDOList = new ArrayList<>();
         List<OrderItemPassengerDO> orderPassengerRelationDOList = new ArrayList<>();
+        // 遍历票务订单项，处理每个订单项的数据
         ticketOrderItems.forEach(each -> {
+            // 构建OrderItemDO对象，设置订单项的详细信息
             OrderItemDO orderItemDO = OrderItemDO.builder()
                     .trainId(requestParam.getTrainId())
                     .seatNumber(each.getSeatNumber())
@@ -155,12 +172,16 @@ public class OrderServiceImpl implements OrderService {
                     .userId(String.valueOf(requestParam.getUserId()))
                     .status(0)
                     .build();
+            // 将构建好的OrderItemDO对象添加到订单项列表中
             orderItemDOList.add(orderItemDO);
+
+            // 构建OrderItemPassengerDO对象，用于记录订单项与乘客的关系
             OrderItemPassengerDO orderPassengerRelationDO = OrderItemPassengerDO.builder()
                     .idType(each.getIdType())
                     .idCard(each.getIdCard())
                     .orderSn(orderSn)
                     .build();
+            // 将构建好的OrderItemPassengerDO对象添加到订单乘客关系列表中
             orderPassengerRelationDOList.add(orderPassengerRelationDO);
         });
         orderItemService.saveBatch(orderItemDOList);
@@ -174,7 +195,7 @@ public class OrderServiceImpl implements OrderService {
                     .orderSn(orderSn)
                     .trainPurchaseTicketResults(requestParam.getTicketOrderItems())
                     .build();
-            // 创建订单并支付后延时关闭订单消息怎么办？详情查看：https://nageoffer.com/12306/question
+            // 创建订单并支付后延时关闭订单消息怎么办？详情查看： 
             SendResult sendResult = delayCloseOrderSendProduce.sendMessage(delayCloseOrderEvent);
             if (!Objects.equals(sendResult.getSendStatus(), SendStatus.SEND_OK)) {
                 throw new ServiceException("投递延迟关闭订单消息队列失败");
