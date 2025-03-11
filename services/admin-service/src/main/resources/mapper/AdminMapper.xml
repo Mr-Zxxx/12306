@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.TrainTicketSystem.adminservice.mapper.AdminMapper">
+
+    <resultMap id="BaseResultMap" type="org.TrainTicketSystem.adminservice.domain.po.Admin">
+            <id property="adminId" column="admin_id" jdbcType="INTEGER"/>
+            <result property="username" column="username" jdbcType="VARCHAR"/>
+            <result property="password" column="password" jdbcType="VARCHAR"/>
+            <result property="realName" column="real_name" jdbcType="VARCHAR"/>
+            <result property="gender" column="gender" jdbcType="OTHER"/>
+            <result property="phone" column="phone" jdbcType="VARCHAR"/>
+            <result property="idCard" column="id_card" jdbcType="VARCHAR"/>
+            <result property="isActive" column="is_active" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        admin_id,username,password,
+        real_name,gender,phone,
+        id_card,is_active
+    </sql>
+</mapper>
