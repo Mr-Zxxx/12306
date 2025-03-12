@@ -369,17 +369,25 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
         // 责任链模式验证 1：参数必填项 2：参数正确性 3：乘客是否已买当前车次
         purchaseTicketAbstractChainContext.handler(TicketChainMarkEnum.TRAIN_PURCHASE_TICKET_FILTER.name(), requestParam);
         TokenResultDTO tokenResult = ticketAvailabilityTokenBucket.takeTokenFromBucket(requestParam);
+        //该函数首先检查令牌是否为空，如果为空，则尝试从缓存中获取与列车ID相关的对象。
+        //如果缓存中不存在该对象，则通过同步块确保线程安全，并在缓存中放入一个新对象，然后调用令牌刷新操作。
         if (tokenResult.getTokenIsNull()) {
+            // 从缓存中获取与列车ID相关的对象
             Object ifPresentObj = tokenTicketsRefreshMap.getIfPresent(requestParam.getTrainId());
+            // 如果缓存中不存在该对象，则进行同步操作
             if (ifPresentObj == null) {
                 synchronized (TicketService.class) {
+                    // 再次检查缓存，确保在同步块内对象仍然不存在
                     if (tokenTicketsRefreshMap.getIfPresent(requestParam.getTrainId()) == null) {
+                        // 创建一个新对象并放入缓存
                         ifPresentObj = new Object();
                         tokenTicketsRefreshMap.put(requestParam.getTrainId(), ifPresentObj);
+                        // 调用令牌刷新操作
                         tokenIsNullRefreshToken(requestParam, tokenResult);
                     }
                 }
             }
+            // 抛出异常，提示列车站点已无余票
             throw new ServiceException("列车站点已无余票");
         }
         //本地锁列表
@@ -434,7 +442,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
 
     @Override
     @Transactional(rollbackFor = Throwable.class)
-    // 执行购票方法
+    // 执行购票方法 executePurchaseTickets
     public TicketPurchaseRespDTO executePurchaseTickets(PurchaseTicketReqDTO requestParam) {
         // 初始化订单详情列表
         List<TicketOrderDetailRespDTO> ticketOrderDetailResults = new ArrayList<>();
@@ -538,6 +546,9 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
             if (!ticketOrderResult.isSuccess() || StrUtil.isBlank(ticketOrderResult.getData())) {
                 log.error("订单服务调用失败，返回结果：{}", ticketOrderResult.getMessage());
                 throw new ServiceException("订单服务调用失败");
+            }else if (ticketOrderResult.getData().equals("存在重复订单")){
+                log.error("存在重复订单，返回结果：{}", ticketOrderResult.getMessage());
+                throw new ServiceException("存在重复订单");
             }
         } catch (Throwable ex) {
             log.error("远程调用订单服务创建错误，请求参数：{}", JSON.toJSONString(requestParam), ex);

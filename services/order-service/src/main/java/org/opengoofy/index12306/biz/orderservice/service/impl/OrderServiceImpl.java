@@ -37,11 +37,7 @@ import org.opengoofy.index12306.biz.orderservice.dao.entity.OrderItemPassengerDO
 import org.opengoofy.index12306.biz.orderservice.dao.mapper.OrderItemMapper;
 import org.opengoofy.index12306.biz.orderservice.dao.mapper.OrderMapper;
 import org.opengoofy.index12306.biz.orderservice.dto.domain.OrderStatusReversalDTO;
-import org.opengoofy.index12306.biz.orderservice.dto.req.CancelTicketOrderReqDTO;
-import org.opengoofy.index12306.biz.orderservice.dto.req.TicketOrderCreateReqDTO;
-import org.opengoofy.index12306.biz.orderservice.dto.req.TicketOrderItemCreateReqDTO;
-import org.opengoofy.index12306.biz.orderservice.dto.req.TicketOrderPageQueryReqDTO;
-import org.opengoofy.index12306.biz.orderservice.dto.req.TicketOrderSelfPageQueryReqDTO;
+import org.opengoofy.index12306.biz.orderservice.dto.req.*;
 import org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderDetailRespDTO;
 import org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderDetailSelfRespDTO;
 import org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderPassengerDetailRespDTO;
@@ -66,9 +62,9 @@ import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.*;
 
 /**
  * 订单服务接口层实现
@@ -87,7 +83,24 @@ public class OrderServiceImpl implements OrderService {
     private final UserRemoteService userRemoteService;
 
     /**
-     * 根据订单编号查询机票订单详情
+     * 判断给定的日期是否在指定的日期范围内。
+     *
+     * @param date      需要判断的日期，不能为null。
+     * @param startDate 范围的起始日期，不能为null。
+     * @param endDate   范围的结束日期，不能为null。
+     * @return 如果日期在范围内（包括起始和结束日期），返回true；否则返回false。
+     */
+    public static boolean isDateWithinRange(Date date, Date startDate, Date endDate) {
+        // 检查参数是否为null，如果有任何一个为null，则直接返回false
+        if (date == null || startDate == null || endDate == null) {
+            return false;
+        }
+        // 判断日期是否在范围内，即日期不小于起始日期且不大于结束日期
+        return !date.before(startDate) && !date.after(endDate);
+    }
+
+    /**
+     * 根据订单编号查询车票订单详情
      *
      * @param orderSn 订单编号，用于查询特定的订单
      * @return 返回机票订单的详细信息，包括乘客详情
@@ -129,9 +142,49 @@ public class OrderServiceImpl implements OrderService {
         });
     }
 
+    //创建车票订单
     @Transactional(rollbackFor = Exception.class)
     @Override
     public String createTicketOrder(TicketOrderCreateReqDTO requestParam) {
+        //查询每个乘车人的订单列表
+        List<String> passengerIds = requestParam.getTicketOrderItems()
+                .stream()
+                .map(TicketOrderItemCreateReqDTO::getIdCard)
+                .toList();
+        //乘车人订单列表
+        Map<String, List<OrderDO>> OrderList = new HashMap<>();
+        for (String passengerId : passengerIds) {
+            LambdaQueryWrapper passageInfo = Wrappers.lambdaQuery(OrderItemDO.class)
+                    .eq(OrderItemDO::getIdCard, passengerId);
+            OrderList.put(passengerId, orderMapper.selectByIDCard(passengerId));
+        }
+        Long curTrainIds = requestParam.getTrainId();
+        LocalDate ridingDate = requestParam.getRidingDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        Set<String> passengerIdSet = OrderList.keySet();
+        for (String passengerId : passengerIdSet) {
+            List<OrderDO> orders = OrderList.get(passengerId);
+            for (OrderDO order : orders) {
+                LocalDate orderRidingDate = order.getRidingDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                //1、判断该[乘车人身份证]下是否存在[车次]以及[出发日期]相同订单
+                //  存在，则抛出异常[订单重复]。
+                if (order.getStatus() != OrderItemStatusEnum.CLOSED.getStatus()
+                        && order.getStatus() != OrderItemStatusEnum.REFUNDED.getStatus()
+                        && order.getTrainId().equals(curTrainIds)
+                        && orderRidingDate.equals(ridingDate)
+                ) {
+                    log.error("存在重复订单");
+                    return "存在重复订单";
+                }
+                //2、该列车运行时间内是否存在其他[已支付]订单
+                //  存在，则抛出异常[列车运行时间与行程冲突]。
+                //  判断条件：出发时间 and 到达时间均不在[已支付]订单中
+                if (Objects.equals(order.getStatus(), OrderItemStatusEnum.ALREADY_PAID.getStatus())
+                        && isDateWithinRange(requestParam.getRidingDate(), order.getDepartureTime(), order.getArrivalTime())) {
+                    log.error("列车运行时间与行程冲突");
+                    return "列车运行时间与行程冲突";
+                }
+            }
+        }
         // 通过基因法将用户 ID 融入到订单号
         String orderSn = OrderIdGeneratorManager.generateId(requestParam.getUserId());
         // 创建OrderDO对象并初始化其属性
@@ -195,7 +248,7 @@ public class OrderServiceImpl implements OrderService {
                     .orderSn(orderSn)
                     .trainPurchaseTicketResults(requestParam.getTicketOrderItems())
                     .build();
-            // 创建订单并支付后延时关闭订单消息怎么办？详情查看： 
+            // 创建订单并支付后延时关闭订单消息怎么办？详情查看：
             SendResult sendResult = delayCloseOrderSendProduce.sendMessage(delayCloseOrderEvent);
             if (!Objects.equals(sendResult.getSendStatus(), SendStatus.SEND_OK)) {
                 throw new ServiceException("投递延迟关闭订单消息队列失败");
@@ -207,38 +260,61 @@ public class OrderServiceImpl implements OrderService {
         return orderSn;
     }
 
+    /**
+     * 关闭待支付状态的订单。
+     * 该方法首先根据订单号查询订单状态，如果订单不存在或订单状态不是待支付，则返回 false。
+     * 如果订单状态为待支付，则调用取消订单的方法来关闭订单。
+     *
+     * @param requestParam 包含订单号等信息的请求参数对象
+     * @return 如果订单成功关闭返回 true，否则返回 false
+     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public boolean closeTickOrder(CancelTicketOrderReqDTO requestParam) {
         String orderSn = requestParam.getOrderSn();
+        // 查询订单状态
         LambdaQueryWrapper<OrderDO> queryWrapper = Wrappers.lambdaQuery(OrderDO.class)
                 .eq(OrderDO::getOrderSn, orderSn)
                 .select(OrderDO::getStatus);
         OrderDO orderDO = orderMapper.selectOne(queryWrapper);
+        // 如果订单不存在或订单状态不是待支付，则返回 false
         if (Objects.isNull(orderDO) || orderDO.getStatus() != OrderStatusEnum.PENDING_PAYMENT.getStatus()) {
             return false;
         }
-        // 原则上订单关闭和订单取消这两个方法可以复用，为了区分未来考虑到的场景，这里对方法进行拆分但复用逻辑
+        // 调用取消订单的方法来关闭订单
         return cancelTickOrder(requestParam);
     }
 
+    /**
+     * 取消订单操作。该方法用于根据传入的请求参数取消指定的订单。
+     * 该方法为事务性操作，若执行过程中发生异常，则回滚事务。
+     *
+     * @param requestParam 取消订单的请求参数，包含订单号等信息
+     * @return 如果订单取消成功，返回true；否则抛出相应的异常
+     * @throws ServiceException 如果订单不存在或订单状态不符合要求，抛出此异常
+     * @throws ClientException  如果获取分布式锁失败，抛出此异常
+     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public boolean cancelTickOrder(CancelTicketOrderReqDTO requestParam) {
         String orderSn = requestParam.getOrderSn();
+        // 查询订单信息
         LambdaQueryWrapper<OrderDO> queryWrapper = Wrappers.lambdaQuery(OrderDO.class)
                 .eq(OrderDO::getOrderSn, orderSn);
         OrderDO orderDO = orderMapper.selectOne(queryWrapper);
+        // 检查订单是否存在及状态是否符合要求
         if (orderDO == null) {
             throw new ServiceException(OrderCanalErrorCodeEnum.ORDER_CANAL_UNKNOWN_ERROR);
         } else if (orderDO.getStatus() != OrderStatusEnum.PENDING_PAYMENT.getStatus()) {
             throw new ServiceException(OrderCanalErrorCodeEnum.ORDER_CANAL_STATUS_ERROR);
         }
+        // 尝试获取分布式锁，防止重复操作
         RLock lock = redissonClient.getLock(StrBuilder.create("order:canal:order_sn_").append(orderSn).toString());
         if (!lock.tryLock()) {
             throw new ClientException(OrderCanalErrorCodeEnum.ORDER_CANAL_REPETITION_ERROR);
         }
         try {
+            // 更新订单状态为“已关闭”
             OrderDO updateOrderDO = new OrderDO();
             updateOrderDO.setStatus(OrderStatusEnum.CLOSED.getStatus());
             LambdaUpdateWrapper<OrderDO> updateWrapper = Wrappers.lambdaUpdate(OrderDO.class)
@@ -247,6 +323,7 @@ public class OrderServiceImpl implements OrderService {
             if (updateResult <= 0) {
                 throw new ServiceException(OrderCanalErrorCodeEnum.ORDER_CANAL_ERROR);
             }
+            // 更新订单项状态为“已关闭”
             OrderItemDO updateOrderItemDO = new OrderItemDO();
             updateOrderItemDO.setStatus(OrderItemStatusEnum.CLOSED.getStatus());
             LambdaUpdateWrapper<OrderItemDO> updateItemWrapper = Wrappers.lambdaUpdate(OrderItemDO.class)
@@ -256,6 +333,7 @@ public class OrderServiceImpl implements OrderService {
                 throw new ServiceException(OrderCanalErrorCodeEnum.ORDER_CANAL_ERROR);
             }
         } finally {
+            // 释放分布式锁
             lock.unlock();
         }
         return true;
@@ -297,14 +375,25 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
+    /**
+     * 支付回调订单处理函数。
+     * 该函数用于处理支付回调事件，更新订单的支付时间和支付类型。
+     *
+     * @param requestParam 支付结果回调订单事件对象，包含支付时间、支付渠道和订单号等信息。
+     * @throws ServiceException 如果订单更新失败，抛出业务异常，异常码为ORDER_STATUS_REVERSAL_ERROR。
+     */
     @Override
     public void payCallbackOrder(PayResultCallbackOrderEvent requestParam) {
+        // 创建订单更新对象，并设置支付时间和支付类型
         OrderDO updateOrderDO = new OrderDO();
         updateOrderDO.setPayTime(requestParam.getGmtPayment());
         updateOrderDO.setPayType(requestParam.getChannel());
+        // 构建更新条件，根据订单号匹配需要更新的订单
         LambdaUpdateWrapper<OrderDO> updateWrapper = Wrappers.lambdaUpdate(OrderDO.class)
                 .eq(OrderDO::getOrderSn, requestParam.getOrderSn());
+        // 执行订单更新操作，并获取更新结果
         int updateResult = orderMapper.update(updateOrderDO, updateWrapper);
+        // 如果更新失败，抛出业务异常
         if (updateResult <= 0) {
             throw new ServiceException(OrderCanalErrorCodeEnum.ORDER_STATUS_REVERSAL_ERROR);
         }

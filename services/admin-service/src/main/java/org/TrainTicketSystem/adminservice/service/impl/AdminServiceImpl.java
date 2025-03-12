@@ -12,8 +12,7 @@ import org.springframework.stereotype.Service;
 * @createDate 2025-03-12 00:52:45
 */
 @Service
-public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin>
-    implements AdminService{
+public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements AdminService{
 
 }
 

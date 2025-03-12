@@ -55,17 +55,8 @@ public enum VehicleTypeEnum {
     /**
      * 普通车
      */
-    REGULAR_TRAIN(2, "REGULAR_TRAIN", "普通车", ListUtil.of(SOFT_SLEEPER.getCode(), HARD_SLEEPER.getCode(), HARD_SEAT.getCode(), NO_SEAT_SLEEPER.getCode())),
+    REGULAR_TRAIN(2, "REGULAR_TRAIN", "普通车", ListUtil.of(SOFT_SLEEPER.getCode(), HARD_SLEEPER.getCode(), HARD_SEAT.getCode(), NO_SEAT_SLEEPER.getCode()));
 
-    /**
-     * 汽车
-     */
-    CAR(3, "CAR", "汽车", null),
-
-    /**
-     * 飞机
-     */
-    AIRPLANE(4, "AIRPLANE", "飞机", null);
 
     @Getter
     private final Integer code;

@@ -109,9 +109,7 @@
           ">提交订单</Button>
         </Space>
       </div>
-      <div class="tips-txt">
-        温馨提示
-      </div>
+
     </Space>
     <Modal :visible="state.open" title="请核对以下信息" wrap-class-name="check-info-wrapper" width="40%"
       @cancel="state.open = false" :footer="null">

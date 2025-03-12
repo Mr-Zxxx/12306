@@ -90,6 +90,7 @@ public final class TrainSeatTypeSelector {
         } else {
             //单线程处理
             seatTypeMap.forEach((seatType, passengerSeatDetails) -> {
+                //座位分配
                 List<TrainPurchaseTicketRespDTO> aggregationResult = distributeSeats(trainType, seatType, requestParam, passengerSeatDetails);
                 actualResult.addAll(aggregationResult);
             });
@@ -147,16 +148,25 @@ public final class TrainSeatTypeSelector {
         return actualResult;
     }
 
+    /**
+     * 根据列车类型、座位类型、购票请求参数以及乘客座位详情，分配座位并返回购票响应信息。
+     */
     private List<TrainPurchaseTicketRespDTO> distributeSeats(Integer trainType, Integer seatType, PurchaseTicketReqDTO requestParam, List<PurchaseTicketPassengerDetailDTO> passengerSeatDetails) {
+        // 构建策略键，用于选择座位分配策略
         String buildStrategyKey = VehicleTypeEnum.findNameByCode(trainType) + VehicleSeatTypeEnum.findNameByCode(seatType);
+
+        // 创建座位选择DTO对象，包含座位类型、乘客座位详情和购票请求参数
         SelectSeatDTO selectSeatDTO = SelectSeatDTO.builder()
                 .seatType(seatType)
                 .passengerSeatDetails(passengerSeatDetails)
                 .requestParam(requestParam)
                 .build();
+
         try {
+            // 根据策略键和座位选择DTO，选择并执行相应的座位分配策略，返回购票响应信息
             return abstractStrategyChoose.chooseAndExecuteResp(buildStrategyKey, selectSeatDTO);
         } catch (ServiceException ex) {
+            // 如果当前车次列车类型未适配，抛出异常并提示用户购买G35或G39车次
             throw new ServiceException("当前车次列车类型暂未适配，请购买G35或G39车次");
         }
     }

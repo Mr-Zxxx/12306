@@ -39,13 +39,21 @@ public class AbstractStrategyChoose implements ApplicationListener<ApplicationIn
     private final Map<String, AbstractExecuteStrategy> abstractExecuteStrategyMap = new HashMap<>();
 
     /**
-     * 根据 mark 查询具体策略
+     * 根据策略标识和匹配范解析标识选择具体的执行策略。
      *
-     * @param mark          策略标识
-     * @param predicateFlag 匹配范解析标识
-     * @return 实际执行策略
+     * 如果 predicateFlag 为 true，则遍历所有策略，使用正则表达式匹配策略的 patternMatchMark 和传入的 mark，
+     * 返回第一个匹配的策略。如果未找到匹配的策略，则抛出 ServiceException 异常。
+     *
+     * 如果 predicateFlag 为 false 或 null，则直接从 abstractExecuteStrategyMap 中根据 mark 查找对应的策略。
+     * 如果未找到对应的策略，则抛出 ServiceException 异常。
+     *
+     * @param mark          策略标识，用于查找具体的执行策略
+     * @param predicateFlag 匹配范解析标识，决定是否使用正则表达式进行匹配
+     * @return 实际执行的策略对象
+     * @throws ServiceException 如果未找到匹配的策略，则抛出此异常
      */
     public AbstractExecuteStrategy choose(String mark, Boolean predicateFlag) {
+        // 如果 predicateFlag 为 true，使用正则表达式匹配策略
         if (predicateFlag != null && predicateFlag) {
             return abstractExecuteStrategyMap.values().stream()
                     .filter(each -> StringUtils.hasText(each.patternMatchMark()))
@@ -53,9 +61,12 @@ public class AbstractStrategyChoose implements ApplicationListener<ApplicationIn
                     .findFirst()
                     .orElseThrow(() -> new ServiceException("策略未定义"));
         }
+
+        // 如果 predicateFlag 为 false 或 null，直接从 map 中查找策略
         return Optional.ofNullable(abstractExecuteStrategyMap.get(mark))
                 .orElseThrow(() -> new ServiceException(String.format("[%s] 策略未定义", mark)));
     }
+
 
     /**
      * 根据 mark 查询具体策略并执行
@@ -83,7 +94,7 @@ public class AbstractStrategyChoose implements ApplicationListener<ApplicationIn
     }
 
     /**
-     * 根据 mark 查询具体策略并执行，带返回结果
+     * 根据指定的标记选择并执行相应的策略，返回执行结果。
      *
      * @param mark         策略标识
      * @param requestParam 执行策略入参
@@ -92,18 +103,32 @@ public class AbstractStrategyChoose implements ApplicationListener<ApplicationIn
      * @return
      */
     public <REQUEST, RESPONSE> RESPONSE chooseAndExecuteResp(String mark, REQUEST requestParam) {
+        // 根据标记选择相应的执行策略
         AbstractExecuteStrategy executeStrategy = choose(mark, null);
+
+        // 执行策略并返回结果
         return (RESPONSE) executeStrategy.executeResp(requestParam);
     }
 
+    /**
+     * 处理应用程序初始化事件，加载并注册所有实现了 {@link AbstractExecuteStrategy} 接口的 Bean。
+     * 该方法会在应用程序初始化时被调用，确保所有执行策略都被正确加载并避免重复注册。
+     * @param event 应用程序初始化事件，包含应用程序上下文的相关信息。
+     */
     @Override
     public void onApplicationEvent(ApplicationInitializingEvent event) {
+        // 从应用上下文中获取所有实现了 AbstractExecuteStrategy 接口的 Bean
         Map<String, AbstractExecuteStrategy> actual = ApplicationContextHolder.getBeansOfType(AbstractExecuteStrategy.class);
+
+        // 遍历所有获取到的执行策略 Bean
         actual.forEach((beanName, bean) -> {
+            // 检查当前策略是否已经存在于策略映射中
             AbstractExecuteStrategy beanExist = abstractExecuteStrategyMap.get(bean.mark());
             if (beanExist != null) {
+                // 如果存在重复策略，抛出异常
                 throw new ServiceException(String.format("[%s] Duplicate execution policy", bean.mark()));
             }
+            // 将策略注册到策略映射中
             abstractExecuteStrategyMap.put(bean.mark(), bean);
         });
     }

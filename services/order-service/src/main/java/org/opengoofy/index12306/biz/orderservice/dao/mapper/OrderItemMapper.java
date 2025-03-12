@@ -26,4 +26,6 @@ import org.opengoofy.index12306.biz.orderservice.dao.entity.OrderItemDO;
  */
 @Mapper
 public interface OrderItemMapper extends BaseMapper<OrderItemDO> {
+
+
 }
