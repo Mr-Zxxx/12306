@@ -16,24 +16,48 @@
                 </div>
             </a-row>
         </a-form>
+
         <h3> &nbsp;搜索结果如下：</h3>
         <div class="search-result-list">
             <!-- 表头 -->
             <a-table v-if="dataSource.length" :columns="columns" :data-source="dataSource" bordered>
                 <template #bodyCell="{ column, text, record }">
-                    <template v-if="['name', 'idNumber', 'phone','email','type'].includes(column.dataIndex)">
+                    <template
+                        v-if="['name', 'idCard', 'phone', 'mail', 'userType', 'verifyStatus'].includes(column.dataIndex)">
                         <div>
                             <a-input v-if="editableData[record.key]"
                                 v-model:value="editableData[record.key][column.dataIndex]" style="margin: -5px 0" />
+
+                            <!-- <a-select ref="select" v-model:value="value1" style="width: 120px" @focus="focus"
+                                v-else-if="editableData[record.key]" @change="handleChange">
+                                <a-select-option value="jack">Jack</a-select-option>
+                                <a-select-option value="lucy">Lucy</a-select-option>
+                                <a-select-option value="disabled" disabled>Disabled</a-select-option>
+                                <a-select-option value="Yiminghe">yiminghe</a-select-option>
+                            </a-select> -->
+
                             <template v-else>
-                                {{ text }}
+                                <span v-if="column.dataIndex === 'verifyStatus'">
+                                    <a-tag :color="record.verifyStatus === 0 ? 'green' : 'red'">
+                                        {{ record.verifyStatus === 0 ? '已审核' : '未审核' }}
+                                    </a-tag>
+                                </span>
+                                <span v-else-if="column.dataIndex === 'userType'">
+                                    {{ record.userType === 0 || record.userType === null ? '成人票' : '学生票' }}
+                                </span>
+                                <span v-else>
+                                    {{ text }}
+                                </span>
                             </template>
                         </div>
                     </template>
+
                     <template v-else-if="column.dataIndex === 'operation'">
                         <div class="editable-row-operations">
                             <span v-if="editableData[record.key]">
-                                <a-typography-link @click="save(record.key)">保存</a-typography-link>
+                                <a-popconfirm title="请确定信息无误，是否保存？" @confirm="save(record.key)">
+                                    <a>保存</a>
+                                </a-popconfirm>
                                 <a-popconfirm title="尚未保存，是否取消？" @confirm="cancel(record.key)">
                                     <a>取消</a>
                                 </a-popconfirm>
@@ -53,13 +77,15 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 import { FormInstance } from 'ant-design-vue';
 import { cloneDeep } from 'lodash-es';
 import { UnwrapRef } from 'vue';
-const expand = ref(false);
+import { name } from 'dayjs/locale/zh-cn';
+import { fetchUserInfoList } from '@/service/index';
 const formRef = ref();
 const formState = reactive({});
+
 
 // 输入框字段
 const fields = [{
@@ -70,7 +96,7 @@ const fields = [{
 },
 {
     label: '身份证号',
-    name: 'idNumber',
+    name: 'idCard',
     placeholder: '身份证号码',
     rules: [{ required: true, message: 'Please input something' }],
 },
@@ -81,39 +107,44 @@ const fields = [{
     rules: [{ required: true, message: 'Please input something' }],
 },
 ]
-const onFinish = (values) => {
-    // 打印表单提交时收集到的值
-    console.log('Received values of form: ', values);
-    // 打印当前表单的状态
-    console.log('formState: ', formState);
-};
 
-// 表格
+
+// 表格字段
 const columns = [
     {
-        title: '姓名',
-        dataIndex: 'name',
+        title: '用户名',
+        dataIndex: 'username',
         width: '15%',
     },
     {
+        title: '姓名',
+        dataIndex: 'realName',
+        width: '10%',
+    },
+    {
         title: '身份证号码',
-        dataIndex: 'idNumber',
+        dataIndex: 'idCard',
         width: '20%',
     },
     {
         title: '手机号',
         dataIndex: 'phone',
-        width: '20%',
+        width: '10%',
     },
     {
         title: '邮箱信息',
-        dataIndex: 'email',
+        dataIndex: 'mail',
         width: '20%',
     },
     {
         title: '乘客类型',
-        dataIndex: 'type',
-        width: '10%',
+        dataIndex: 'userType',
+        width: '5%',
+    },
+    {
+        title: '审核状态',
+        dataIndex: 'verifyStatus',
+        width: '8%',
     },
     {
         title: '编辑',
@@ -122,19 +153,25 @@ const columns = [
 ];
 
 const data = [];
-for (let i = 0; i < 5; i++) {
-    data.push({
-        key: i.toString(),
-        name: `张${i}`,
-        idNumber: 32,
-        phone: `152xxxx000${i}`,
-        email: `${i}@qq.com`,
-        type: '成人票',
-    });
-}
-
 const dataSource = ref(data);
 const editableData = reactive({});
+
+const onFinish = (values) => {
+    // 构建用户批量查询条件
+    const searchForm = {
+        name: formState[0],
+        idCard: formState[1],
+        phone: formState[2],
+    }
+    fetchUserInfoList(searchForm).then(res => {
+        console.log(res);
+        dataSource.value = res.data;
+    })
+    // 打印表单提交时收集到的值
+    console.log('Received values of form: ', values);
+    // 打印当前表单的状态
+    console.log('formState: ', formState);
+};
 
 const edit = (key) => {
     editableData[key] = cloneDeep(dataSource.value.filter(item => key === item.key)[0]);
@@ -146,6 +183,15 @@ const save = (key) => {
 const cancel = (key) => {
     delete editableData[key];
 };
+
+onMounted(() => {
+    // 获取用户信息
+    fetchUserInfoList({}).then(res => {
+        console.log(res);
+        dataSource.value = res.data;
+    })
+})
+
 </script>
 
 <style scoped>
@@ -200,22 +246,24 @@ const cancel = (key) => {
 
 /* 表格单元格文字居中 */
 :deep(.ant-table-tbody>tr>td) {
-    text-align: center ;
-    vertical-align: middle ;
+    text-align: center;
+    vertical-align: middle;
 }
+
 :deep(.ant-table-thead > tr > th) {
-    color: #ffffff ;
+    color: #ffffff;
     background: #0976c3bb;
     text-align: center;
     vertical-align: middle;
 }
-.no-search-result-list{
+
+.no-search-result-list {
     width: 100%;
     height: 300px;
     display: flex;
     justify-content: center;
     align-items: center;
-    background:#fff;
+    background: #fff;
     color: #43434384;
     border-radius: 6px;
     font-size: 20px;

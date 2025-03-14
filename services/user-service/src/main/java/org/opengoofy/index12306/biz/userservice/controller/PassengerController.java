@@ -63,6 +63,14 @@ public class PassengerController {
     }
 
     /**
+     * 根据乘车人条件查询乘车人列表
+     */
+    @GetMapping("/api/user-service/passenger/actual/query/ids")
+    public Result<List<PassengerActualRespDTO>> listPassengerQueryByInfo(@RequestParam("username") String username, @RequestParam("ids") List<Long> ids) {
+        return Results.success(passengerService.listPassengerQueryByIds(username, ids));
+    }
+
+    /**
      * 新增乘车人
      */
     @Idempotent(

@@ -21,6 +21,8 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 import org.opengoofy.index12306.biz.orderservice.dao.entity.OrderDO;
+import org.opengoofy.index12306.biz.orderservice.dto.req.TicketOrderQueryListDTO;
+import org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderAndUserDetailRespDTO;
 
 import java.util.Date;
 import java.util.List;
@@ -34,5 +36,7 @@ public interface OrderMapper extends BaseMapper<OrderDO> {
     //根据身份证查询订单
     @Select("SELECT t_order.* FROM t_order ,t_order_item WHERE t_order_item.order_sn = t_order.order_sn AND t_order_item.id_card = #{idCard} ")
     List<OrderDO> selectByIDCard(String idCard);
+
+    List<TicketOrderAndUserDetailRespDTO> selectOrderAndUserInfoListByCondition(TicketOrderQueryListDTO requestParam);
 
 }

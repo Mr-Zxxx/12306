@@ -38,6 +38,7 @@ import org.opengoofy.index12306.biz.orderservice.dao.mapper.OrderItemMapper;
 import org.opengoofy.index12306.biz.orderservice.dao.mapper.OrderMapper;
 import org.opengoofy.index12306.biz.orderservice.dto.domain.OrderStatusReversalDTO;
 import org.opengoofy.index12306.biz.orderservice.dto.req.*;
+import org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderAndUserDetailRespDTO;
 import org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderDetailRespDTO;
 import org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderDetailSelfRespDTO;
 import org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderPassengerDetailRespDTO;
@@ -125,6 +126,9 @@ public class OrderServiceImpl implements OrderService {
         return result;
     }
 
+    /*
+    * 分页查询车票订单
+    * */
     @Override
     public PageResponse<TicketOrderDetailRespDTO> pageTicketOrder(TicketOrderPageQueryReqDTO requestParam) {
         LambdaQueryWrapper<OrderDO> queryWrapper = Wrappers.lambdaQuery(OrderDO.class)
@@ -399,25 +403,48 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
+    /**
+     * 分页查询当前用户的票务订单详情。
+     *
+     * 该方法首先通过当前登录用户的用户名查询其实际用户信息，然后根据用户身份证号查询相关的乘客订单项，
+     * 最后将查询结果转换为分页响应对象，并填充订单详情信息。
+     *
+     * @param requestParam 分页查询请求参数，包含分页信息和查询条件
+     * @return 包含当前用户票务订单详情的分页响应对象
+     */
     @Override
     public PageResponse<TicketOrderDetailSelfRespDTO> pageSelfTicketOrder(TicketOrderSelfPageQueryReqDTO requestParam) {
+        // 通过当前登录用户的用户名查询实际用户信息
         Result<UserQueryActualRespDTO> userActualResp = userRemoteService.queryActualUserByUsername(UserContext.getUsername());
+        // 构建查询条件，根据用户身份证号查询乘客订单项，并按创建时间降序排列
         LambdaQueryWrapper<OrderItemPassengerDO> queryWrapper = Wrappers.lambdaQuery(OrderItemPassengerDO.class)
                 .eq(OrderItemPassengerDO::getIdCard, userActualResp.getData().getIdCard())
                 .orderByDesc(OrderItemPassengerDO::getCreateTime);
+        // 执行分页查询，获取乘客订单项的分页结果
         IPage<OrderItemPassengerDO> orderItemPassengerPage = orderPassengerRelationService.page(PageUtil.convert(requestParam), queryWrapper);
+        // 将分页结果转换为包含订单详情的分页响应对象
         return PageUtil.convert(orderItemPassengerPage, each -> {
+            // 根据订单号查询订单信息
             LambdaQueryWrapper<OrderDO> orderQueryWrapper = Wrappers.lambdaQuery(OrderDO.class)
                     .eq(OrderDO::getOrderSn, each.getOrderSn());
             OrderDO orderDO = orderMapper.selectOne(orderQueryWrapper);
+            // 根据订单号和身份证号查询订单项信息
             LambdaQueryWrapper<OrderItemDO> orderItemQueryWrapper = Wrappers.lambdaQuery(OrderItemDO.class)
                     .eq(OrderItemDO::getOrderSn, each.getOrderSn())
                     .eq(OrderItemDO::getIdCard, each.getIdCard());
             OrderItemDO orderItemDO = orderItemMapper.selectOne(orderItemQueryWrapper);
+            // 将订单信息和订单项信息合并到响应对象中
             TicketOrderDetailSelfRespDTO actualResult = BeanUtil.convert(orderDO, TicketOrderDetailSelfRespDTO.class);
             BeanUtil.convertIgnoreNullAndBlank(orderItemDO, actualResult);
             return actualResult;
         });
+    }
+
+    // 查询满足查询条件的订单列表，并返回包含订单信息和用户信息的列表。
+    @Override
+    public List<TicketOrderAndUserDetailRespDTO> queryTicketOrderListByCondition(TicketOrderQueryListDTO requestParam) {
+        List<TicketOrderAndUserDetailRespDTO> result = orderMapper.selectOrderAndUserInfoListByCondition(requestParam);
+        return result;
     }
 
     private List<Integer> buildOrderStatusList(TicketOrderPageQueryReqDTO requestParam) {

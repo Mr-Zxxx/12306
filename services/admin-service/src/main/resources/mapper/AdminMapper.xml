@@ -5,19 +5,32 @@
 <mapper namespace="org.TrainTicketSystem.adminservice.mapper.AdminMapper">
 
     <resultMap id="BaseResultMap" type="org.TrainTicketSystem.adminservice.domain.po.Admin">
-            <id property="adminId" column="admin_id" jdbcType="INTEGER"/>
+            <id property="id" column="id" jdbcType="BIGINT"/>
             <result property="username" column="username" jdbcType="VARCHAR"/>
             <result property="password" column="password" jdbcType="VARCHAR"/>
             <result property="realName" column="real_name" jdbcType="VARCHAR"/>
-            <result property="gender" column="gender" jdbcType="OTHER"/>
-            <result property="phone" column="phone" jdbcType="VARCHAR"/>
+            <result property="region" column="region" jdbcType="VARCHAR"/>
+            <result property="idType" column="id_type" jdbcType="INTEGER"/>
             <result property="idCard" column="id_card" jdbcType="VARCHAR"/>
-            <result property="isActive" column="is_active" jdbcType="TINYINT"/>
+            <result property="phone" column="phone" jdbcType="VARCHAR"/>
+            <result property="telephone" column="telephone" jdbcType="VARCHAR"/>
+            <result property="mail" column="mail" jdbcType="VARCHAR"/>
+            <result property="verifyStatus" column="verify_status" jdbcType="INTEGER"/>
+            <result property="postCode" column="post_code" jdbcType="VARCHAR"/>
+            <result property="address" column="address" jdbcType="VARCHAR"/>
+            <result property="deletionTime" column="deletion_time" jdbcType="BIGINT"/>
+            <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+            <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+            <result property="adminFlag" column="admin_flag" jdbcType="INTEGER"/>
+            <result property="delFlag" column="del_flag" jdbcType="TINYINT"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        admin_id,username,password,
-        real_name,gender,phone,
-        id_card,is_active
+        id,username,password,
+        real_name,region,id_type,
+        id_card,phone,telephone,
+        mail,verify_status,post_code,
+        address,deletion_time,create_time,
+        update_time,admin_flag,del_flag
     </sql>
 </mapper>

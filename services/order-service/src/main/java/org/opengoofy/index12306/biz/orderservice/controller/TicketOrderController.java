@@ -19,11 +19,8 @@ package org.opengoofy.index12306.biz.orderservice.controller;
 
 import cn.crane4j.annotation.AutoOperate;
 import lombok.RequiredArgsConstructor;
-import org.opengoofy.index12306.biz.orderservice.dto.req.CancelTicketOrderReqDTO;
-import org.opengoofy.index12306.biz.orderservice.dto.req.TicketOrderCreateReqDTO;
-import org.opengoofy.index12306.biz.orderservice.dto.req.TicketOrderItemQueryReqDTO;
-import org.opengoofy.index12306.biz.orderservice.dto.req.TicketOrderPageQueryReqDTO;
-import org.opengoofy.index12306.biz.orderservice.dto.req.TicketOrderSelfPageQueryReqDTO;
+import org.opengoofy.index12306.biz.orderservice.dto.req.*;
+import org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderAndUserDetailRespDTO;
 import org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderDetailRespDTO;
 import org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderDetailSelfRespDTO;
 import org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderPassengerDetailRespDTO;
@@ -75,6 +72,14 @@ public class TicketOrderController {
         return Results.success(orderService.pageTicketOrder(requestParam));
     }
 
+    /*
+     * 查询车票订单列表
+     */
+    @PostMapping("/api/order-service/order/ticket/queryList")
+    public Result<List<TicketOrderAndUserDetailRespDTO>> queryTicketOrderList(@RequestBody TicketOrderQueryListDTO requestParam) {
+        return Results.success(orderService.queryTicketOrderListByCondition(requestParam));
+    }
+
     /**
      * 分页查询本人车票订单
      */
@@ -106,4 +111,5 @@ public class TicketOrderController {
     public Result<Boolean> cancelTickOrder(@RequestBody CancelTicketOrderReqDTO requestParam) {
         return Results.success(orderService.cancelTickOrder(requestParam));
     }
+
 }

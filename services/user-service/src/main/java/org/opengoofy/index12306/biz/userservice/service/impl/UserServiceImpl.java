@@ -20,6 +20,7 @@ package org.opengoofy.index12306.biz.userservice.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.RequiredArgsConstructor;
 import org.opengoofy.index12306.biz.userservice.dao.entity.UserDO;
@@ -29,6 +30,7 @@ import org.opengoofy.index12306.biz.userservice.dao.mapper.UserDeletionMapper;
 import org.opengoofy.index12306.biz.userservice.dao.mapper.UserMailMapper;
 import org.opengoofy.index12306.biz.userservice.dao.mapper.UserMapper;
 import org.opengoofy.index12306.biz.userservice.dto.req.UserUpdateReqDTO;
+import org.opengoofy.index12306.biz.userservice.dto.req.UsersQueryReqDTO;
 import org.opengoofy.index12306.biz.userservice.dto.resp.UserQueryActualRespDTO;
 import org.opengoofy.index12306.biz.userservice.dto.resp.UserQueryRespDTO;
 import org.opengoofy.index12306.biz.userservice.service.UserService;
@@ -36,6 +38,7 @@ import org.opengoofy.index12306.framework.starter.common.toolkit.BeanUtil;
 import org.opengoofy.index12306.framework.starter.convention.exception.ClientException;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -70,6 +73,22 @@ public class UserServiceImpl implements UserService {
             throw new ClientException("用户不存在，请检查用户名是否正确");
         }
         return BeanUtil.convert(userDO, UserQueryRespDTO.class);
+    }
+
+    @Override
+    public List<UserQueryRespDTO> queryUserList(UsersQueryReqDTO usersQueryReqDTO) {
+        LambdaQueryWrapper<UserDO> queryWrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.isNotBlank(usersQueryReqDTO.getName())){
+            queryWrapper.like(UserDO::getRealName, usersQueryReqDTO.getName());
+        }
+        if (StringUtils.isNotBlank(usersQueryReqDTO.getIdCard())){
+            queryWrapper.likeLeft(UserDO::getIdCard, usersQueryReqDTO.getIdCard());
+        }
+        if (StringUtils.isNotBlank(usersQueryReqDTO.getPhone())){
+            queryWrapper.likeLeft(UserDO::getPhone, usersQueryReqDTO.getPhone());
+        }
+        List<UserDO> userDOList = userMapper.selectList(queryWrapper);
+        return BeanUtil.convert(userDOList, UserQueryRespDTO.class);
     }
 
     @Override

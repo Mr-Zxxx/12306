@@ -220,6 +220,27 @@ const fetchAdminLogin = async (body) => {
   http.defaults.headers.common['Authorization'] = data.data?.accessToken
   return data
 }
+
+// 用户信息列表
+const fetchUserInfoList = async(body)=>{
+  const {data} = await http({
+    method:'POST',
+    url:'api/user-service/queryList',
+    data:body
+  })
+  return data
+}
+
+// 订单信息列表
+const fetchOrderInfoList = async(body)=>{
+  const {data} = await http({
+    method:'POST',
+    url:'api/order-service/order/ticket/queryList',
+    data:body
+  })
+  return data
+}
+
 export {
   fetchLogin,
   fetchRegister,
@@ -241,5 +262,8 @@ export {
   fetchOrderStatus,
   fetchUserUpdate,
   fetchMyTicket,
-  fetchRefundTicket
+  fetchRefundTicket,
+  fetchAdminLogin,
+  fetchUserInfoList,
+  fetchOrderInfoList
 }

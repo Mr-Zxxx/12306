@@ -21,8 +21,8 @@ const useForm = Form.useForm
 
 const userOrAdmin = ref(1);
 const formState = reactive({
-  usernameOrMailOrPhone: 'admin',
-  password: 'admin123456',
+  usernameOrMailOrPhone: '',
+  password: '',
   code: ''
 })
 const state = reactive({
@@ -122,8 +122,6 @@ const store = useStore()
 // 使用store.dispatch方法调用loginAction，传入用户信息
 const handleLogin = async (user) => {
   await store.dispatch('login', user);
-  console.log('用户登录身份信息如下：');
-  console.log(user);
 }
 /**
  * 处理登录逻辑的函数
@@ -147,6 +145,7 @@ const handleFinish = () => {
       role: userOrAdmin.value
     };
     handleLogin(user)
+    sessionStorage.setItem('store', JSON.stringify(store.state))
     fetchLogin({
       ...formState
     }).then((res) => {
@@ -185,6 +184,7 @@ const registerSubmit = () => {
     })
     .catch((err) => console.log(err))
 }
+
 
 </script>
 <template>

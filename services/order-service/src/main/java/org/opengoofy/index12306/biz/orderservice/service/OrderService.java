@@ -18,14 +18,14 @@
 package org.opengoofy.index12306.biz.orderservice.service;
 
 import org.opengoofy.index12306.biz.orderservice.dto.domain.OrderStatusReversalDTO;
-import org.opengoofy.index12306.biz.orderservice.dto.req.CancelTicketOrderReqDTO;
-import org.opengoofy.index12306.biz.orderservice.dto.req.TicketOrderCreateReqDTO;
-import org.opengoofy.index12306.biz.orderservice.dto.req.TicketOrderPageQueryReqDTO;
-import org.opengoofy.index12306.biz.orderservice.dto.req.TicketOrderSelfPageQueryReqDTO;
+import org.opengoofy.index12306.biz.orderservice.dto.req.*;
+import org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderAndUserDetailRespDTO;
 import org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderDetailRespDTO;
 import org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderDetailSelfRespDTO;
 import org.opengoofy.index12306.biz.orderservice.mq.event.PayResultCallbackOrderEvent;
 import org.opengoofy.index12306.framework.starter.convention.page.PageResponse;
+
+import java.util.List;
 
 /**
  * 订单接口层
@@ -91,4 +91,12 @@ public interface OrderService {
      * @return 本人车票订单集合
      */
     PageResponse<TicketOrderDetailSelfRespDTO> pageSelfTicketOrder(TicketOrderSelfPageQueryReqDTO requestParam);
+
+    /**
+     * 根据条件查询车票订单
+     *
+     * @param requestParam 请求参数
+     * @return 订单集合
+     */
+    List<TicketOrderAndUserDetailRespDTO> queryTicketOrderListByCondition(TicketOrderQueryListDTO requestParam);
 }

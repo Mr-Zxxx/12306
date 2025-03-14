@@ -19,8 +19,11 @@ package org.opengoofy.index12306.biz.userservice.service;
 
 import jakarta.validation.constraints.NotEmpty;
 import org.opengoofy.index12306.biz.userservice.dto.req.UserUpdateReqDTO;
+import org.opengoofy.index12306.biz.userservice.dto.req.UsersQueryReqDTO;
 import org.opengoofy.index12306.biz.userservice.dto.resp.UserQueryActualRespDTO;
 import org.opengoofy.index12306.biz.userservice.dto.resp.UserQueryRespDTO;
+
+import java.util.List;
 
 /**
  * 用户信息接口层
@@ -42,6 +45,14 @@ public interface UserService {
      * @return 用户详细信息
      */
     UserQueryRespDTO queryUserByUsername(@NotEmpty String username);
+
+    /**
+     * 根据用户信息查询用户信息
+     *
+     * @param usersQueryReqDTO 用户信息入参
+     * @return 用户详细信息列表
+     */
+    List<UserQueryRespDTO> queryUserList(UsersQueryReqDTO usersQueryReqDTO);
 
     /**
      * 根据用户名查询用户无脱敏信息

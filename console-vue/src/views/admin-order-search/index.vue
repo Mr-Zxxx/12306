@@ -13,6 +13,7 @@
                     </template>
                     <div style=" display: flex; align-items: center;">下单日期:</div>
                     <a-date-picker v-model:value="orderDate" />
+                    <!-- 提交查询信息 -->
                     <a-button type="primary" html-type="submit" @click="onFinish">搜索</a-button>
                     <a-button @click="() => formRef.resetFields()">重置</a-button>
                 </div>
@@ -23,7 +24,7 @@
             <a-table :columns="columns" :data-source="data">
                 <!-- 表头自定义 -->
                 <template #headerCell="{ column }">
-                    <template v-if="column.key === 'name'">
+                    <template v-if="column.key === 'realName'">
                         <span>
                             姓名
                         </span>
@@ -36,12 +37,16 @@
                             {{ record.name }}
                         </a>
                     </template>
-                    <template v-else-if="column.key === 'tags'">
+                    <template v-else-if="column.key === 'status'">
                         <span>
-                            <a-tag v-for="tag in record.tags" :key="tag"
-                                :color="tag === '已取消' ? 'volcano' : tag==='待出行' ? 'geekblue' : 'green'">
-                                {{ tag }}
+                            <a-tag :color="getStatusColor(record.status)">
+                                {{ getStatusText(record.status) }}
                             </a-tag>
+                        </span>
+                    </template>
+                    <template v-else-if="column.key === 'amount'">
+                        <span>
+                            {{ '￥'+record.amount/100 }}
                         </span>
                     </template>
                     <!-- 操作列 -->
@@ -64,42 +69,50 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { SmileOutlined, DownOutlined } from '@ant-design/icons-vue';
+import { fetchOrderInfoList } from '@/service';
 const expand = ref(false);
 const formRef = ref();
 const formState = reactive({});
 const orderDate = ref();
 const date = new Date();
 // 输入框字段
-const fields = [{
-    label: '姓名',
-    name: 'name',
-    placeholder: '姓名',
-    rules: [{ required: true, message: 'Please input something' }],
-},
-{
-    label: '身份证号',
-    name: 'idCard',
-    placeholder: '身份证号码',
-    rules: [{ required: true, message: 'Please input something' }],
-}]
-
+const fields = [
+    {
+        label: '订单号',
+        name: 'orderSn',
+        placeholder: '订单号',
+        rules: [{ required: true, message: '请输入内容' }],
+    },
+    {
+        label: '姓名',
+        name: 'name',
+        placeholder: '姓名',
+        rules: [{ required: true, message: '请输入内容' }],
+    },
+    {
+        label: '身份证号',
+        name: 'idCard',
+        placeholder: '身份证号码',
+        rules: [{ required: true, message: '请输入内容' }],
+    }]
+// 表格字段
 const columns = [
     {
         title: '订单号',
-        dataIndex: 'orderId',
-        key: 'orderId',
+        dataIndex: 'orderSn',
+        key: 'orderSn',
     },
     {
         name: 'Name',
-        dataIndex: 'name',
-        key: 'name',
+        dataIndex: 'realName',
+        key: 'realName',
     },
     {
         title: '身份证号',
-        dataIndex: 'idNumber',
-        key: 'idNumber',
+        dataIndex: 'idCard',
+        key: 'idCard',
     },
     {
         title: '车次',
@@ -112,76 +125,110 @@ const columns = [
         key: 'departure',
     },
     {
-        title: '目地站',
-        dataIndex: 'destination',
-        key: 'destination',
+        title: '到达站',
+        dataIndex: 'arrival',
+        key: 'arrival',
     },
     {
         title: '出发时间',
-        dataIndex: 'startTime',
-        key: 'startTime',
+        dataIndex: 'departureTime',
+        key: 'departureTime',
     },
     {
-        title: '下单日期',
-        dataIndex: 'orderDate',
-        key: 'orderDate',
+        title: '下单时间',
+        dataIndex: 'orderTime',
+        key: 'orderTime',
     },
     {
         title: '订单状态',
-        dataIndex: 'tags',
-        key: 'tags',
+        dataIndex: 'status',
+        key: 'status',
+    },
+    {
+        title: '订单金额',
+        dataIndex: 'amount',
+        key: 'amount',
     },
     {
         title: '操作',
         key: 'action',
     },
 ];
-const data = [
-    {
-        key: '1',
-        orderId:'000001',
-        name: '张三',
-        idNumber: '123456789000000001',
-        trainNumber: 'G35',
-        departure: '北京',
-        destination:'杭州',
-        startTime:'2025-05-02',
-        orderDate:'2025-03-01',
-        tags: ['已完成'],
-    },
-    {
-        key: '2',
-        orderId:'000002',
-        name: '李四',
-        idNumber: '123456789000000002',
-        trainNumber: 'G35',
-        departure: '北京',
-        destination:'杭州',
-        startTime:'2025-05-01',
-        orderDate:'2025-03-01',
-        tags: ['已取消'],
-    },
-    {
-        key: '3',
-        orderId:'000003',
-        name: '王五',
-        idNumber: '123456789000000003',
-        trainNumber: 'G35',
-        departure: '北京',
-        destination:'杭州',
-        startTime:'2025-04-30',
-        orderDate:'2025-03-01',
-        tags: ['待出行'],
-    },
-];
-
+// 表格数据对象数组
+let data = ref()
+// 获取订单状态
+const getStatusText = (status) => {
+    switch (status) {
+        case 0:
+            return '待支付';
+        case 10:
+            return '已支付';
+        case 20:
+            return '已进站';
+        case 30:
+            return '已取消';
+        case 40:
+            return '已退票';
+        case 50:
+            return '已改签';
+        default:
+            return '/';
+    }
+}
+// 获取状态颜色
+const getStatusColor = (status) => {
+    switch (status) {
+        case 0:
+            return 'orange';
+        case 10:
+            return 'blue';
+        case 20:
+            return 'green';
+        case 30:
+            return 'red';
+        case 40:
+            return 'gray';
+        case 50:
+            return 'purple';
+        default:
+            return '';
+    }
+}
 const onFinish = (values) => {
+    // 构建查询条件
+    const requstBody = {
+        orderSn: formState[0],
+        name: formState[1],
+        idCard: formState[2],
+        orderDate: formState[3],
+    }
+    fetchOrderInfoList(requstBody).then(res => {
+        console.log(res);
+        data = res.data;
+    })
     // 打印表单提交时收集到的值
-    console.log('Received values of form: ', values);
+    console.log('', values);
     // 打印当前表单的状态
     console.log('formState: ', formState);
 };
 
+onMounted(() => {
+
+    const requstBody = {
+        orderSn: formState[0],
+        name: formState[1],
+        idCard: formState[2],
+        orderDate: formState[3],
+    }
+    fetchOrderInfoList(requstBody).then(res => {
+        console.log('页面初始化赋值');
+        data.value = res.data;
+        for (let i = 0; i < data.length; i++) {
+            data[i] = { ...data[i], key: i }
+        }
+        console.log(data);
+    })
+});
 
 </script>
 
@@ -208,7 +255,6 @@ const onFinish = (values) => {
     margin-bottom: 20px;
 }
 
-
 #components-form-demo-advanced-search .search-result-list {
     margin-top: 20px;
     border: 1px solid #232323;
@@ -232,11 +278,12 @@ const onFinish = (values) => {
 }
 
 :deep(.ant-table-tbody>tr>td) {
-    text-align: center ;
-    vertical-align: middle ;
+    text-align: center;
+    vertical-align: middle;
 }
+
 :deep(.ant-table-thead>tr>th) {
-    color: #ffffff ;
+    color: #ffffff;
     background: #0976c3bb;
     text-align: center;
     vertical-align: middle;

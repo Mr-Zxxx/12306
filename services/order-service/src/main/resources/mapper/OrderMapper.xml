@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.opengoofy.index12306.biz.orderservice.dao.mapper.OrderMapper">
+
+    <select id="selectOrderAndUserInfoListByCondition"
+            resultType="org.opengoofy.index12306.biz.orderservice.dto.resp.TicketOrderAndUserDetailRespDTO">
+        SELECT
+        t_order.*,
+        t_order_item.*
+        FROM t_order,t_order_item
+        WHERE t_order_item.order_sn = t_order.order_sn
+        <if test="orderSn != null">
+            AND t_order.order_sn = #{orderSn}
+        </if>
+        <if test="name != null">
+            AND t_order.name LIKE CONCAT('%'+#{name}+'%')
+        </if>
+        <if test="idCard != null">
+            AND t_order_item.id_card LIKE CONCAT('%'+#{idCard})
+        </if>
+        <if test="orderDate != null">
+            AND t_order.order_date LIKE CONCAT(#{orderDate}+'%')
+        </if>
+
+    </select>
+
+
+</mapper>

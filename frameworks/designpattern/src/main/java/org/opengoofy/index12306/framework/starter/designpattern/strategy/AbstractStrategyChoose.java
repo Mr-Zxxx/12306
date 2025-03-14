@@ -56,9 +56,13 @@ public class AbstractStrategyChoose implements ApplicationListener<ApplicationIn
         // 如果 predicateFlag 为 true，使用正则表达式匹配策略
         if (predicateFlag != null && predicateFlag) {
             return abstractExecuteStrategyMap.values().stream()
+                    // 过滤出具有有效模式匹配标记的策略
                     .filter(each -> StringUtils.hasText(each.patternMatchMark()))
+                    // 使用正则表达式匹配给定的标记与策略的模式匹配标记
                     .filter(each -> Pattern.compile(each.patternMatchMark()).matcher(mark).matches())
+                    // 返回第一个匹配的策略实例
                     .findFirst()
+                    // 如果没有找到匹配的策略，则抛出ServiceException异常
                     .orElseThrow(() -> new ServiceException("策略未定义"));
         }
 
@@ -105,7 +109,6 @@ public class AbstractStrategyChoose implements ApplicationListener<ApplicationIn
     public <REQUEST, RESPONSE> RESPONSE chooseAndExecuteResp(String mark, REQUEST requestParam) {
         // 根据标记选择相应的执行策略
         AbstractExecuteStrategy executeStrategy = choose(mark, null);
-
         // 执行策略并返回结果
         return (RESPONSE) executeStrategy.executeResp(requestParam);
     }

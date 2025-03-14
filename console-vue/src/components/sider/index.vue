@@ -129,6 +129,33 @@ const logout = () => {
     }
   })
 }
+const created = (store) => {
+  // 在页面加载时读取sessionStorage里的状态信息
+  if (sessionStorage.getItem('store')) {
+    store.replaceState(
+      Object.assign(
+        {},
+        JSON.parse(sessionStorage.getItem('store'))
+      )
+    )
+  }
+}
+
+const debounce = (func, wait) => {
+  let timeout;
+  return function (...args) {
+    const context = this;
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      func.apply(context, args);
+    }, wait);
+  };
+}
+
+onMounted(() => {
+  debounce(created(store),500)
+  // 在页面加载时读取sessionStorage里的状态信息
+})
 
 </script>
 
@@ -224,5 +251,4 @@ const logout = () => {
     user-select: none;
   }
 }
-
 </style>

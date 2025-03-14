@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.opengoofy.index12306.biz.userservice.dto.req.UserDeletionReqDTO;
 import org.opengoofy.index12306.biz.userservice.dto.req.UserRegisterReqDTO;
 import org.opengoofy.index12306.biz.userservice.dto.req.UserUpdateReqDTO;
+import org.opengoofy.index12306.biz.userservice.dto.req.UsersQueryReqDTO;
 import org.opengoofy.index12306.biz.userservice.dto.resp.UserQueryActualRespDTO;
 import org.opengoofy.index12306.biz.userservice.dto.resp.UserQueryRespDTO;
 import org.opengoofy.index12306.biz.userservice.dto.resp.UserRegisterRespDTO;
@@ -35,6 +36,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 用户控制层
@@ -60,6 +63,14 @@ public class UserInfoController {
     @GetMapping("/api/user-service/actual/query")
     public Result<UserQueryActualRespDTO> queryActualUserByUsername(@RequestParam("username") @NotEmpty String username) {
         return Results.success(userService.queryActualUserByUsername(username));
+    }
+
+    /**
+     * 根据用户信息查询用户信息列表
+     */
+    @PostMapping("/api/user-service/queryList")
+    public Result<List<UserQueryRespDTO>> queryUserList(@RequestBody UsersQueryReqDTO usersQueryReqDTO) {
+        return Results.success(userService.queryUserList(usersQueryReqDTO));
     }
 
     /**
