@@ -12,7 +12,7 @@
                         </a-form-item>
                     </template>
                     <div style=" display: flex; align-items: center;">下单日期:</div>
-                    <a-date-picker v-model:value="orderDate" />
+                    <a-date-picker v-model:value="date" />
                     <!-- 提交查询信息 -->
                     <a-button type="primary" html-type="submit" @click="onFinish">搜索</a-button>
                     <a-button @click="() => formRef.resetFields()">重置</a-button>
@@ -75,8 +75,13 @@ import { fetchOrderInfoList } from '@/service';
 const expand = ref(false);
 const formRef = ref();
 const formState = reactive({});
-const orderDate = ref();
-const date = new Date();
+const date = ref();
+const orderDate = computed(() => {
+    if (date.value) {
+        return date.value.format('YYYY-MM-DD')
+    }
+    return ''
+})
 // 输入框字段
 const fields = [
     {
@@ -200,16 +205,16 @@ const onFinish = (values) => {
         orderSn: formState[0],
         name: formState[1],
         idCard: formState[2],
-        orderDate: formState[3],
+        orderDate: orderDate.value,
     }
+    console.log(requstBody);
     fetchOrderInfoList(requstBody).then(res => {
         console.log(res);
-        data = res.data;
+        data.value = res.data;
+        for (let i = 0; i < data.length; i++) {
+            data[i] = { ...data[i], key: i }
+        }
     })
-    // 打印表单提交时收集到的值
-    console.log('', values);
-    // 打印当前表单的状态
-    console.log('formState: ', formState);
 };
 
 onMounted(() => {
@@ -221,12 +226,10 @@ onMounted(() => {
         orderDate: formState[3],
     }
     fetchOrderInfoList(requstBody).then(res => {
-        console.log('页面初始化赋值');
         data.value = res.data;
         for (let i = 0; i < data.length; i++) {
             data[i] = { ...data[i], key: i }
         }
-        console.log(data);
     })
 });
 

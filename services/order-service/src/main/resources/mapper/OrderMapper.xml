@@ -11,17 +11,17 @@
         t_order_item.*
         FROM t_order,t_order_item
         WHERE t_order_item.order_sn = t_order.order_sn
-        <if test="orderSn != null">
+        <if test="orderSn != null ">
             AND t_order.order_sn = #{orderSn}
         </if>
-        <if test="name != null">
-            AND t_order.name LIKE CONCAT('%'+#{name}+'%')
+        <if test="name != null ">
+            AND t_order_item.real_name LIKE CONCAT('%',#{name},'%')
         </if>
-        <if test="idCard != null">
-            AND t_order_item.id_card LIKE CONCAT('%'+#{idCard})
+        <if test="idCard != null ">
+            AND t_order_item.id_card = #{idCard}
         </if>
         <if test="orderDate != null">
-            AND t_order.order_date LIKE CONCAT(#{orderDate}+'%')
+            AND t_order.order_time between #{orderDate} AND DATE_ADD(#{orderDate}, INTERVAL 1 DAY)
         </if>
 
     </select>
