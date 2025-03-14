@@ -101,7 +101,7 @@ const adminSider = [
     key: 'adminOrderSerach'
   },
   {
-    name: '财务统计',
+    name: '客流统计',
     link: '/adminFinance',
     key: 'adminFinance'
   }

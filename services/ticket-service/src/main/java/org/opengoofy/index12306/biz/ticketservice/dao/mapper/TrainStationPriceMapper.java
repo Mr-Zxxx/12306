@@ -24,6 +24,6 @@ import org.opengoofy.index12306.biz.ticketservice.dao.entity.TrainStationPriceDO
 /**
  * 列车站点价格持久层
  */
-
+@Mapper
 public interface TrainStationPriceMapper extends BaseMapper<TrainStationPriceDO> {
 }

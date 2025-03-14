@@ -39,34 +39,47 @@ public class TrainCarriageTests {
     private CarriageMapper carriageMapper;
 
     /**
-     * 列车 ID
-     * 车厢号 -> 车厢总数
-     * 车厢类型 -> 车厢类型集合
-     * 座位数 -> 车厢类型对应的座位数
+     * 初始化 t_carriage 列车车厢数据
+     * 
+     * 该函数用于模拟初始化列车车厢数据，并将生成的车厢数据插入到数据库中。
+     * 函数通过遍历车厢号，根据车厢号与车厢类型的映射关系，生成对应的车厢数据。
+     * 
+     * 主要逻辑：
+     * 1. 初始化列车ID和车厢总数。
+     * 2. 定义车厢类型与车厢号、座位数的映射关系。
+     * 3. 遍历车厢号，生成车厢数据，并根据映射关系设置车厢类型和座位数。
+     * 4. 将生成的车厢数据插入到数据库中。
      */
     @Test
     void testInitData() {
-        long trainId = 4L;
+        long trainId = 3L;
         int num = 17;
-        // Map<Integer, Map<Integer, Integer>> typeCountMap = MapUtil.of(3, MapUtil.of(5, 24));
-        // typeCountMap.put(4, MapUtil.of(11, 32));
-        // typeCountMap.put(5, MapUtil.of(17, 36));
+        
+        // 定义车厢类型与车厢号、座位数的映射关系
         Map<Integer, Map<Integer, Integer>> typeCountMap = MapUtil.of(6, MapUtil.of(5, 24));
         typeCountMap.put(7, MapUtil.of(11, 32));
         typeCountMap.put(8, MapUtil.of(17, 36));
+        
         List<CarriageDO> carriageDOList = new ArrayList<>();
+        
+        // 遍历车厢号，生成车厢数据
         for (int i = 1; i < num; i++) {
             CarriageDO carriageDO = new CarriageDO();
             carriageDO.setTrainId(trainId);
+            
+            // 格式化车厢号，确保为两位数
             String carriageNumber = String.valueOf(i);
             if (i < 10) {
                 carriageNumber = "0" + carriageNumber;
             }
             carriageDO.setCarriageNumber(carriageNumber);
+            
+            // 根据车厢号确定车厢类型和座位数
             AtomicInteger atomicInteger = new AtomicInteger(i);
             AtomicInteger carriageType = new AtomicInteger();
             AtomicInteger seatCount = new AtomicInteger();
             AtomicBoolean flag = new AtomicBoolean(Boolean.TRUE);
+            
             typeCountMap.forEach((key, val) -> val.forEach((key1, val1) -> {
                 if (key1 > atomicInteger.get() && flag.get()) {
                     carriageType.set(key);
@@ -74,13 +87,19 @@ public class TrainCarriageTests {
                     flag.set(Boolean.FALSE);
                 }
             }));
+            
+            // 设置车厢类型、座位数、创建时间、更新时间等字段
             carriageDO.setCarriageType(carriageType.get());
             carriageDO.setSeatCount(seatCount.get());
             carriageDO.setCreateTime(new Date());
             carriageDO.setUpdateTime(new Date());
             carriageDO.setDelFlag(DelEnum.NORMAL.code());
+            
+            // 将生成的车厢数据添加到列表中
             carriageDOList.add(carriageDO);
         }
+        
+        // 将生成的车厢数据插入到数据库中
         carriageDOList.forEach(carriageMapper::insert);
     }
 }

@@ -50,20 +50,40 @@ public final class AbstractChainContext<T> implements CommandLineRunner {
         abstractChainHandlers.forEach(each -> each.handler(requestParam));
     }
 
+    /**
+     * 实现CommandLineRunner接口的run方法，用于初始化责任链处理器容器
+     * 
+     * @param args 命令行参数（本实现中未使用）
+     * @throws Exception 执行过程中可能抛出的异常
+     * 
+     * 功能说明：
+     * 1. 从Spring容器获取所有AbstractChainHandler类型的bean
+     * 2. 按责任链标识(mark)分类存储到容器中
+     * 3. 对每个责任链处理器列表进行排序（根据Ordered接口定义的顺序）
+     */
     @Override
     public void run(String... args) throws Exception {
+        // 获取Spring容器中所有责任链处理器实现类
         Map<String, AbstractChainHandler> chainFilterMap = ApplicationContextHolder
                 .getBeansOfType(AbstractChainHandler.class);
+
+        // 遍历处理每个处理器bean
         chainFilterMap.forEach((beanName, bean) -> {
+            // 获取或创建当前标识对应的处理器列表
             List<AbstractChainHandler> abstractChainHandlers = abstractChainHandlerContainer.get(bean.mark());
             if (CollectionUtils.isEmpty(abstractChainHandlers)) {
                 abstractChainHandlers = new ArrayList();
             }
+
+            // 添加当前处理器到列表
             abstractChainHandlers.add(bean);
+
+            // 对处理器列表进行排序并更新容器
             List<AbstractChainHandler> actualAbstractChainHandlers = abstractChainHandlers.stream()
                     .sorted(Comparator.comparing(Ordered::getOrder))
                     .collect(Collectors.toList());
             abstractChainHandlerContainer.put(bean.mark(), actualAbstractChainHandlers);
         });
     }
+
 }

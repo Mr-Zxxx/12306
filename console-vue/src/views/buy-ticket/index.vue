@@ -258,7 +258,7 @@ import Cookie from 'js-cookie'
 import router from '@/router'
 const styleWidth = { width: '150px' }
 // 获取当前日期
-const { query } = useRoute()
+const {  } = useRoute()
 const username = Cookie.get('username')
 const state = reactive({
   currTrain: null,

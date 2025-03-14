@@ -67,17 +67,34 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, SeatDO> implements 
         return seatDOList.stream().map(SeatDO::getSeatNumber).collect(Collectors.toList());
     }
 
+    /**
+     * 查询指定列车区间及车厢的剩余票数列表（优先从缓存获取）
+     *
+     * @param trainId             列车ID
+     * @param departure           出发站编码
+     * @param arrival             到达站编码
+     * @param trainCarriageList  需要查询的车厢编号列表
+     * @return 各车厢对应的剩余票数列表（顺序与输入车厢列表一致）
+     */
     @Override
     public List<Integer> listSeatRemainingTicket(String trainId, String departure, String arrival, List<String> trainCarriageList) {
+        // 构建缓存键后缀：列车ID_出发站_到达站
         String keySuffix = StrUtil.join("_", trainId, departure, arrival);
+    
+        // 优先从Redis缓存查询余票信息
         if (distributedCache.hasKey(TRAIN_STATION_CARRIAGE_REMAINING_TICKET + keySuffix)) {
             StringRedisTemplate stringRedisTemplate = (StringRedisTemplate) distributedCache.getInstance();
+            // 批量获取指定车厢的余票数据
             List<Object> trainStationCarriageRemainingTicket =
                     stringRedisTemplate.opsForHash().multiGet(TRAIN_STATION_CARRIAGE_REMAINING_TICKET + keySuffix, Arrays.asList(trainCarriageList.toArray()));
+            
+            // 转换查询结果到Integer类型列表
             if (CollUtil.isNotEmpty(trainStationCarriageRemainingTicket)) {
                 return trainStationCarriageRemainingTicket.stream().map(each -> Integer.parseInt(each.toString())).collect(Collectors.toList());
             }
         }
+    
+        // 缓存未命中时回源数据库查询
         SeatDO seatDO = SeatDO.builder()
                 .trainId(Long.parseLong(trainId))
                 .startStation(departure)
@@ -86,8 +103,24 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, SeatDO> implements 
         return seatMapper.listSeatRemainingTicket(seatDO, trainCarriageList);
     }
 
+    /**
+     * 查询指定条件下可用的车厢编号列表
+     *
+     * @param trainId 列车ID，用于指定具体的列车
+     * @param carriageType 车厢类型代码，用于筛选指定类型的车厢
+     * @param departure 出发站代码，筛选起始站匹配的车厢
+     * @param arrival 到达站代码，筛选终点站匹配的车厢
+     * @return 符合条件的可用车厢编号列表（去重后）
+     *
+     * 实现逻辑：
+     * 1. 构建座位查询条件，筛选符合列车ID、车厢类型、起止站点
+     *    且座位状态为可用的记录
+     * 2. 按车厢号分组实现去重，避免重复返回相同车厢号
+     * 3. 执行数据库查询并提取车厢号字段返回结果
+     */
     @Override
     public List<String> listUsableCarriageNumber(String trainId, Integer carriageType, String departure, String arrival) {
+        // 构建组合查询条件：列车ID+车厢类型+行程区间+可用状态
         LambdaQueryWrapper<SeatDO> queryWrapper = Wrappers.lambdaQuery(SeatDO.class)
                 .eq(SeatDO::getTrainId, trainId)
                 .eq(SeatDO::getSeatType, carriageType)
@@ -96,9 +129,11 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, SeatDO> implements 
                 .eq(SeatDO::getSeatStatus, SeatStatusEnum.AVAILABLE.getCode())
                 .groupBy(SeatDO::getCarriageNumber)
                 .select(SeatDO::getCarriageNumber);
+        // 执行查询并提取车厢号字段
         List<SeatDO> seatDOList = seatMapper.selectList(queryWrapper);
         return seatDOList.stream().map(SeatDO::getCarriageNumber).collect(Collectors.toList());
     }
+
 
     @Override
     public List<SeatTypeCountDTO> listSeatTypeCount(Long trainId, String startStation, String endStation, List<Integer> seatTypes) {

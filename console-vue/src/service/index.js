@@ -225,7 +225,7 @@ const fetchAdminLogin = async (body) => {
 const fetchUserInfoList = async(body)=>{
   const {data} = await http({
     method:'POST',
-    url:'api/user-service/queryList',
+    url:'/api/user-service/queryList',
     data:body
   })
   return data
@@ -235,7 +235,7 @@ const fetchUserInfoList = async(body)=>{
 const fetchOrderInfoList = async(body)=>{
   const {data} = await http({
     method:'POST',
-    url:'api/order-service/order/ticket/queryList',
+    url:'/api/order-service/order/ticket/queryList',
     data:body
   })
   return data

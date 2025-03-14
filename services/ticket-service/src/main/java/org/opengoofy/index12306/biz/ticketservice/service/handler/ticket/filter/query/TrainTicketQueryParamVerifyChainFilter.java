@@ -59,24 +59,43 @@ public class TrainTicketQueryParamVerifyChainFilter implements TrainTicketQueryC
      */
     private static boolean CACHE_DATA_ISNULL_AND_LOAD_FLAG = false;
 
+    /**
+     * 处理车票页面查询请求的处理器方法。
+     * 该方法首先从Redis缓存中获取出发地和目的地的信息，如果缓存中不存在，则从数据库中加载并更新缓存。
+     * 如果出发地或目的地不存在，则抛出异常。
+     *
+     * @param requestParam 车票页面查询请求参数，包含出发地和目的地信息
+     */
     @Override
     public void handler(TicketPageQueryReqDTO requestParam) {
+        // 获取Redis操作实例
         StringRedisTemplate stringRedisTemplate = (StringRedisTemplate) distributedCache.getInstance();
         HashOperations<String, Object, Object> hashOperations = stringRedisTemplate.opsForHash();
+
+        // 从Redis缓存中获取出发地和目的地的信息
         List<Object> actualExistList = hashOperations.multiGet(
                 QUERY_ALL_REGION_LIST,
                 ListUtil.toList(requestParam.getFromStation(), requestParam.getToStation())
         );
+    
+        // 统计缓存中不存在的出发地或目的地的数量
         long emptyCount = actualExistList.stream().filter(Objects::isNull).count();
+    
+        // 如果缓存中出发地和目的地都存在，则直接返回
         if (emptyCount == 0L) {
             return;
         }
+    
+        // 如果缓存中出发地或目的地有一个不存在，或者两个都不存在且缓存加载标志为true，则抛出异常
         if (emptyCount == 1L || (emptyCount == 2L && CACHE_DATA_ISNULL_AND_LOAD_FLAG && distributedCache.hasKey(QUERY_ALL_REGION_LIST))) {
             throw new ClientException("出发地或目的地不存在");
         }
+    
+        // 获取分布式锁，确保只有一个线程可以更新缓存
         RLock lock = redissonClient.getLock(LOCK_QUERY_ALL_REGION_LIST);
         lock.lock();
         try {
+            // 再次检查缓存中是否存在出发地和目的地的信息
             if (distributedCache.hasKey(QUERY_ALL_REGION_LIST)) {
                 actualExistList = hashOperations.multiGet(
                         QUERY_ALL_REGION_LIST,
@@ -88,8 +107,12 @@ public class TrainTicketQueryParamVerifyChainFilter implements TrainTicketQueryC
                 }
                 return;
             }
+    
+            // 从数据库中加载所有地区和车站的信息
             List<RegionDO> regionDOList = regionMapper.selectList(Wrappers.emptyWrapper());
             List<StationDO> stationDOList = stationMapper.selectList(Wrappers.emptyWrapper());
+    
+            // 将地区和车站信息存入Map中
             HashMap<Object, Object> regionValueMap = Maps.newHashMap();
             for (RegionDO each : regionDOList) {
                 regionValueMap.put(each.getCode(), each.getName());
@@ -97,8 +120,12 @@ public class TrainTicketQueryParamVerifyChainFilter implements TrainTicketQueryC
             for (StationDO each : stationDOList) {
                 regionValueMap.put(each.getCode(), each.getName());
             }
+    
+            // 将Map中的数据存入Redis缓存
             hashOperations.putAll(QUERY_ALL_REGION_LIST, regionValueMap);
             CACHE_DATA_ISNULL_AND_LOAD_FLAG = true;
+    
+            // 检查出发地和目的地是否在缓存中存在
             emptyCount = regionValueMap.keySet().stream()
                     .filter(each -> StrUtil.equalsAny(each.toString(), requestParam.getFromStation(), requestParam.getToStation()))
                     .count();
@@ -106,6 +133,7 @@ public class TrainTicketQueryParamVerifyChainFilter implements TrainTicketQueryC
                 throw new ClientException("出发地或目的地不存在");
             }
         } finally {
+            // 释放分布式锁
             lock.unlock();
         }
     }

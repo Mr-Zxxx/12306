@@ -42,7 +42,7 @@ const carRangeTime = [
 
 const headSearch = reactive({
   fromStation: 'BJP',
-  toStation: 'HZH',
+  toStation: 'NJH',
   departureDate: dayjs(),
   arrival_date: '',
   car_type: [],
@@ -447,7 +447,7 @@ const { resetFields, validate } = useForm(headSearch)
 
 const days = new Array(15)
   .fill(',')
-  .map((item, index) => dayjs().add(index, 'days'))
+  .map((item, index) => dayjs().add(index + 1, 'days'))
 
 /**
  * 处理查询出发地表单的提交操作
@@ -455,6 +455,7 @@ const days = new Array(15)
  * 然后调用 `fetchTicketSearch` 函数进行车票查询。根据查询结果更新页面状态，包括列车列表、列车品牌列表、
  * 座位类型列表、出发站点列表和到达站点列表等。
  */
+// 提交查询
 const handSubmit = () => {
   // 验证表单数据
   validate().then(() => {
@@ -632,6 +633,7 @@ const handleBook = (record) => {
             </Row>
           </Card>
           <div class="card-container">
+            <!-- 列车信息列表 -->
             <Tabs type="card" :default-active-key="headSearch.departureDate.format('MM-DD')"
               :key="headSearch.departureDate.format('MM-DD')" @change="
                 (value) => {

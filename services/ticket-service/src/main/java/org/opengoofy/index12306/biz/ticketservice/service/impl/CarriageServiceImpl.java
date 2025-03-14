@@ -50,14 +50,26 @@ public class CarriageServiceImpl implements CarriageService {
     private final CarriageMapper carriageMapper;
     private final RedissonClient redissonClient;
 
+    /**
+     * 根据列车ID和车厢类型查询对应的车厢号列表
+     * <p>
+     * 优先从缓存中获取数据，若不存在则通过数据库查询并缓存结果
+     *
+     * @param trainId       列车唯一标识符，用于关联车厢数据
+     * @param carriageType  车厢类型标识，用于筛选指定类型的车厢
+     * @return 包含符合条件车厢号的字符串列表（从缓存或数据库获取）
+     */
     @Override
     public List<String> listCarriageNumber(String trainId, Integer carriageType) {
         final String key = TRAIN_CARRIAGE + trainId;
+        
+        // 安全获取车厢号的核心处理逻辑（包含缓存机制）
         return safeGetCarriageNumber(
                 trainId,
                 key,
                 carriageType,
                 () -> {
+                    // 构建数据库查询条件并执行查询
                     LambdaQueryWrapper<CarriageDO> queryWrapper = Wrappers.lambdaQuery(CarriageDO.class)
                             .eq(CarriageDO::getTrainId, trainId)
                             .eq(CarriageDO::getCarriageType, carriageType);
@@ -66,6 +78,7 @@ public class CarriageServiceImpl implements CarriageService {
                     return StrUtil.join(StrUtil.COMMA, carriageListWithOnlyNumber);
                 });
     }
+
 
     private HashOperations<String, Object, Object> getHashOperations() {
         StringRedisTemplate stringRedisTemplate = (StringRedisTemplate) distributedCache.getInstance();

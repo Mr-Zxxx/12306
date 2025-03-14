@@ -138,6 +138,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
     private final TrainMapper trainMapper;
     private final TrainStationRelationMapper trainStationRelationMapper;
     private final TrainStationPriceMapper trainStationPriceMapper;
+    // 分布式缓存
     private final DistributedCache distributedCache;
     private final TicketOrderRemoteService ticketOrderRemoteService;
     private final PayRemoteService payRemoteService;
@@ -149,6 +150,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
     private final AbstractChainContext<TicketPageQueryReqDTO> ticketPageQueryAbstractChainContext;
     private final AbstractChainContext<PurchaseTicketReqDTO> purchaseTicketAbstractChainContext;
     private final AbstractChainContext<RefundTicketReqDTO> refundReqDTOAbstractChainContext;
+    // Redisson库，为Redis提供分布式锁
     private final RedissonClient redissonClient;
     private final ConfigurableEnvironment environment;
     private final TicketAvailabilityTokenBucket ticketAvailabilityTokenBucket;
@@ -159,48 +161,80 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
     @Value("${framework.cache.redis.prefix:}")
     private String cacheRedisPrefix;
 
+    /**
+     * 分页查询车票信息V1版本
+     * 实现流程：
+     * 1. 通过责任链模式校验请求参数有效性
+     * 2. 查询并处理车站区域映射缓存
+     * 3. 构建区域车站Hash缓存并查询车次信息
+     * 4. 处理 余票信息 和 票价计算
+     * 5. 组装最终响应结果
+     *
+     * @param requestParam 车票分页查询请求参数，包含出发站、到达站、日期等过滤条件
+     * @return TicketPageQueryRespDTO 分页查询响应结构，包含车次列表、车站列表、席别类型等数据
+     */
     @Override
     public TicketPageQueryRespDTO pageListTicketQueryV1(TicketPageQueryReqDTO requestParam) {
-        // 责任链模式 验证城市名称是否存在、不存在加载缓存以及出发日期不能小于当前日期等等
+        /* 责任链模式  执行参数校验：车站存在性校验、出发日期有效性校验等 */
         ticketPageQueryAbstractChainContext.handler(TicketChainMarkEnum.TRAIN_QUERY_FILTER.name(), requestParam);
+        /* 车站区域映射缓存处理逻辑 */
         StringRedisTemplate stringRedisTemplate = (StringRedisTemplate) distributedCache.getInstance();
+        // 从Redis缓存
+        // 批量查询获取 [请求的地区-->车站]
         List<Object> stationDetails = stringRedisTemplate.opsForHash()
                 .multiGet(REGION_TRAIN_STATION_MAPPING, Lists.newArrayList(requestParam.getFromStation(), requestParam.getToStation()));
+
+        /* 缓存未命中时的处理逻辑（双重检查 锁模式） */
         long count = stationDetails.stream().filter(Objects::isNull).count();
         if (count > 0) {
+            // 获取分布式锁
             RLock lock = redissonClient.getLock(LOCK_REGION_TRAIN_STATION_MAPPING);
+            // 上锁
             lock.lock();
             try {
+                // 二次检查缓存状态
                 stationDetails = stringRedisTemplate.opsForHash()
                         .multiGet(REGION_TRAIN_STATION_MAPPING, Lists.newArrayList(requestParam.getFromStation(), requestParam.getToStation()));
                 count = stationDetails.stream().filter(Objects::isNull).count();
                 if (count > 0) {
+                    // 缓存加载：从数据库加载全量车站数据并写入缓存
                     List<StationDO> stationDOList = stationMapper.selectList(Wrappers.emptyWrapper());
                     Map<String, String> regionTrainStationMap = new HashMap<>();
                     stationDOList.forEach(each -> regionTrainStationMap.put(each.getCode(), each.getRegionName()));
                     stringRedisTemplate.opsForHash().putAll(REGION_TRAIN_STATION_MAPPING, regionTrainStationMap);
+                    // 更新当前查询的车站区域信息
                     stationDetails = new ArrayList<>();
                     stationDetails.add(regionTrainStationMap.get(requestParam.getFromStation()));
                     stationDetails.add(regionTrainStationMap.get(requestParam.getToStation()));
                 }
             } finally {
+                // 释放锁
                 lock.unlock();
             }
         }
+
+        /* 地区车站车次信息处理 */
         List<TicketListDTO> seatResults = new ArrayList<>();
         String buildRegionTrainStationHashKey = String.format(REGION_TRAIN_STATION, stationDetails.get(0), stationDetails.get(1));
+
+        /* 车次信息缓存处理逻辑 */
         Map<Object, Object> regionTrainStationAllMap = stringRedisTemplate.opsForHash().entries(buildRegionTrainStationHashKey);
         if (MapUtil.isEmpty(regionTrainStationAllMap)) {
             RLock lock = redissonClient.getLock(LOCK_REGION_TRAIN_STATION);
             lock.lock();
             try {
+                // 二次检查缓存状态
                 regionTrainStationAllMap = stringRedisTemplate.opsForHash().entries(buildRegionTrainStationHashKey);
                 if (MapUtil.isEmpty(regionTrainStationAllMap)) {
+                    // 缓存重建逻辑：查询车站关联车次并组装数据
                     LambdaQueryWrapper<TrainStationRelationDO> queryWrapper = Wrappers.lambdaQuery(TrainStationRelationDO.class)
                             .eq(TrainStationRelationDO::getStartRegion, stationDetails.get(0))
                             .eq(TrainStationRelationDO::getEndRegion, stationDetails.get(1));
                     List<TrainStationRelationDO> trainStationRelationList = trainStationRelationMapper.selectList(queryWrapper);
+
+                    // 车次信息组装处理
                     for (TrainStationRelationDO each : trainStationRelationList) {
+                        // 车次缓存处理（包含防穿透逻辑）
                         TrainDO trainDO = distributedCache.safeGet(
                                 TRAIN_INFO + each.getTrainId(),
                                 TrainDO.class,
@@ -235,11 +269,18 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
                 lock.unlock();
             }
         }
+
+        /* 结果集处理：优先使用内存数据，否则反序列化缓存数据 */
         seatResults = CollUtil.isEmpty(seatResults)
                 ? regionTrainStationAllMap.values().stream().map(each -> JSON.parseObject(each.toString(), TicketListDTO.class)).toList()
                 : seatResults;
+
+        /* 车次时刻排序处理 */
         seatResults = seatResults.stream().sorted(new TimeStringComparator()).toList();
+
+        /* 余票价格计算处理 */
         for (TicketListDTO each : seatResults) {
+            // 席别价格信息获取（包含缓存处理）
             String trainStationPriceStr = distributedCache.safeGet(
                     String.format(TRAIN_STATION_PRICE, each.getTrainId(), each.getDeparture(), each.getArrival()),
                     String.class,
@@ -253,6 +294,8 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
                     ADVANCE_TICKET_DAY,
                     TimeUnit.DAYS
             );
+
+            /* 余票数量计算逻辑 */
             List<TrainStationPriceDO> trainStationPriceDOList = JSON.parseArray(trainStationPriceStr, TrainStationPriceDO.class);
             List<SeatClassDTO> seatClassList = new ArrayList<>();
             trainStationPriceDOList.forEach(item -> {
@@ -270,6 +313,8 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
             });
             each.setSeatClassList(seatClassList);
         }
+
+        /* 最终响应结果组装 */
         return TicketPageQueryRespDTO.builder()
                 .trainList(seatResults)
                 .departureStationList(buildDepartureStationList(seatResults))
@@ -279,18 +324,35 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
                 .build();
     }
 
+    /**
+     * 车票分页列表（V2版本）。
+     * 该函数通过处理链上下文进行车票查询过滤，并从Redis中获取车站、车次、价格及余票信息，
+     * 最终构建并返回车票分页查询的响应DTO。
+     *
+     * @param requestParam 车票分页查询请求参数，包含出发站、到达站等信息。
+     * @return TicketPageQueryRespDTO 车票分页查询响应DTO，包含车次列表、出发站列表、到达站列表、列车品牌列表及座位类型列表。
+     */
     @Override
     public TicketPageQueryRespDTO pageListTicketQueryV2(TicketPageQueryReqDTO requestParam) {
+        // 通过处理链上下文进行车票查询过滤
         ticketPageQueryAbstractChainContext.handler(TicketChainMarkEnum.TRAIN_QUERY_FILTER.name(), requestParam);
+    
+        // 获取Redis实例并查询出发站和到达站的详细信息
         StringRedisTemplate stringRedisTemplate = (StringRedisTemplate) distributedCache.getInstance();
         List<Object> stationDetails = stringRedisTemplate.opsForHash()
                 .multiGet(REGION_TRAIN_STATION_MAPPING, Lists.newArrayList(requestParam.getFromStation(), requestParam.getToStation()));
+    
+        // 构建哈希键 获取所有车次信息
         String buildRegionTrainStationHashKey = String.format(REGION_TRAIN_STATION, stationDetails.get(0), stationDetails.get(1));
         Map<Object, Object> regionTrainStationAllMap = stringRedisTemplate.opsForHash().entries(buildRegionTrainStationHashKey);
+    
+        // 将车次信息转换为DTO列表并按时间排序
         List<TicketListDTO> seatResults = regionTrainStationAllMap.values().stream()
                 .map(each -> JSON.parseObject(each.toString(), TicketListDTO.class))
                 .sorted(new TimeStringComparator())
                 .toList();
+    
+        // 构建车次价格键列表并通过管道批量获取价格信息
         List<String> trainStationPriceKeys = seatResults.stream()
                 .map(each -> String.format(cacheRedisPrefix + TRAIN_STATION_PRICE, each.getTrainId(), each.getDeparture(), each.getArrival()))
                 .toList();
@@ -298,6 +360,8 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
             trainStationPriceKeys.forEach(each -> connection.stringCommands().get(each.getBytes()));
             return null;
         });
+    
+        // 解析价格信息并构建余票键列表
         List<TrainStationPriceDO> trainStationPriceDOList = new ArrayList<>();
         List<String> trainStationRemainingKeyList = new ArrayList<>();
         for (Object each : trainStationPriceObjs) {
@@ -308,23 +372,30 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
                 trainStationRemainingKeyList.add(trainStationRemainingKey);
             }
         }
+    
+        // 通过管道批量获取余票信息
         List<Object> trainStationRemainingObjs = stringRedisTemplate.executePipelined((RedisCallback<String>) connection -> {
             for (int i = 0; i < trainStationRemainingKeyList.size(); i++) {
                 connection.hashCommands().hGet(trainStationRemainingKeyList.get(i).getBytes(), trainStationPriceDOList.get(i).getSeatType().toString().getBytes());
             }
             return null;
         });
+    
+        // 为每个车次设置座位类型、余票及价格信息
         for (TicketListDTO each : seatResults) {
             List<Integer> seatTypesByCode = VehicleTypeEnum.findSeatTypesByCode(each.getTrainType());
             List<Object> remainingTicket = new ArrayList<>(trainStationRemainingObjs.subList(0, seatTypesByCode.size()));
             List<TrainStationPriceDO> trainStationPriceDOSub = new ArrayList<>(trainStationPriceDOList.subList(0, seatTypesByCode.size()));
             trainStationRemainingObjs.subList(0, seatTypesByCode.size()).clear();
             trainStationPriceDOList.subList(0, seatTypesByCode.size()).clear();
+    
+            // 构建座位类型DTO列表
             List<SeatClassDTO> seatClassList = new ArrayList<>();
             for (int i = 0; i < trainStationPriceDOSub.size(); i++) {
                 TrainStationPriceDO trainStationPriceDO = trainStationPriceDOSub.get(i);
                 SeatClassDTO seatClassDTO = SeatClassDTO.builder()
                         .type(trainStationPriceDO.getSeatType())
+                        // 从Redis中获取余票信息
                         .quantity(Integer.parseInt(remainingTicket.get(i).toString()))
                         .price(new BigDecimal(trainStationPriceDO.getPrice()).divide(new BigDecimal("100"), 1, RoundingMode.HALF_UP))
                         .candidate(false)
@@ -333,6 +404,8 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
             }
             each.setSeatClassList(seatClassList);
         }
+    
+        // 构建并返回车票分页查询响应DTO
         return TicketPageQueryRespDTO.builder()
                 .trainList(seatResults)
                 .departureStationList(buildDepartureStationList(seatResults))
@@ -548,7 +621,10 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
                 throw new ServiceException("订单服务调用失败");
             }else if (ticketOrderResult.getData().equals("存在重复订单")){
                 log.error("存在重复订单，返回结果：{}", ticketOrderResult.getMessage());
-                throw new ServiceException("存在重复订单");
+                throw new ServiceException("已存在该乘车人的相同订单");
+            }else if (ticketOrderResult.getData().equals("列车运行时间与行程冲突")){
+                log.error("存在重复订单，返回结果：{}", ticketOrderResult.getMessage());
+                throw new ServiceException("本次列车运行时间与您的行程冲突");
             }
         } catch (Throwable ex) {
             log.error("远程调用订单服务创建错误，请求参数：{}", JSON.toJSONString(requestParam), ex);

@@ -62,21 +62,32 @@ public abstract class AbstractTrainPurchaseTicketTemplate implements IPurchaseTi
                 .build();
     }
 
+    /**
+     * 执行座位选择操作，并返回购票响应信息。
+     * 该方法首先根据请求参数选择座位，然后根据缓存更新类型决定是否扣减车厢和站点的余票缓存。
+     *
+     * @param requestParam 包含座位选择请求信息的DTO对象，包括列车ID、出发站、到达站等信息。
+     * @return 返回购票响应信息的列表，每个元素包含所选座位的详细信息。
+     */
     @Override
     public List<TrainPurchaseTicketRespDTO> executeResp(SelectSeatDTO requestParam) {
+        // 选择座位并获取实际结果
         List<TrainPurchaseTicketRespDTO> actualResult = selectSeats(requestParam);
-        // 扣减车厢余票缓存，扣减站点余票缓存
+        // 如果实际结果不为空且缓存更新类型不为"binlog"，则扣减车厢和站点的余票缓存
         if (CollUtil.isNotEmpty(actualResult) && !StrUtil.equals(ticketAvailabilityCacheUpdateType, "binlog")) {
             String trainId = requestParam.getRequestParam().getTrainId();
             String departure = requestParam.getRequestParam().getDeparture();
             String arrival = requestParam.getRequestParam().getArrival();
             StringRedisTemplate stringRedisTemplate = (StringRedisTemplate) distributedCache.getInstance();
+            // 获取列车站点路线信息，并遍历每个路线扣减余票缓存
             List<RouteDTO> routeDTOList = trainStationService.listTakeoutTrainStationRoute(trainId, departure, arrival);
             routeDTOList.forEach(each -> {
                 String keySuffix = StrUtil.join("_", trainId, each.getStartStation(), each.getEndStation());
                 stringRedisTemplate.opsForHash().increment(TRAIN_STATION_REMAINING_TICKET + keySuffix, String.valueOf(requestParam.getSeatType()), -actualResult.size());
             });
         }
+
+        // 返回购票响应信息
         return actualResult;
     }
 

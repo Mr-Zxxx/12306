@@ -152,7 +152,7 @@ public final class TrainSeatTypeSelector {
      * 根据列车类型、座位类型、购票请求参数以及乘客座位详情，分配座位并返回购票响应信息。
      */
     private List<TrainPurchaseTicketRespDTO> distributeSeats(Integer trainType, Integer seatType, PurchaseTicketReqDTO requestParam, List<PurchaseTicketPassengerDetailDTO> passengerSeatDetails) {
-        // 构建策略键，用于选择座位分配策略
+        // 根据 [列车类型] 和 [座位类型] 构建策略键 构建策略键，用于选择座位分配策略
         String buildStrategyKey = VehicleTypeEnum.findNameByCode(trainType) + VehicleSeatTypeEnum.findNameByCode(seatType);
 
         // 创建座位选择DTO对象，包含座位类型、乘客座位详情和购票请求参数

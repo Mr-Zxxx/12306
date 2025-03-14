@@ -52,12 +52,12 @@
                     <!-- 操作列 -->
                     <template v-else-if="column.key === 'action'">
                         <span>
-                            <a>改签</a>
+                            <!-- <a>改签</a> -->
                             <a-divider type="vertical" />
                             <a>退票</a>
                             <a-divider type="vertical" />
                             <a class="ant-dropdown-link">
-                                查看详细
+                                <!-- 查看详细 -->
                                 <down-outlined />
                             </a>
                         </span>

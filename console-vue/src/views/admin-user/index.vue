@@ -62,8 +62,9 @@
                                     <a>取消</a>
                                 </a-popconfirm>
                             </span>
+                            
                             <span v-else>
-                                <a @click="edit(record.key)">修改</a>
+                                <!-- <a @click="edit(record.key)">修改</a> -->
                             </span>
                         </div>
                     </template>
@@ -147,7 +148,8 @@ const columns = [
         width: '8%',
     },
     {
-        title: '编辑',
+        // TODO
+        title: '备注',
         dataIndex: 'operation',
     },
 ];
